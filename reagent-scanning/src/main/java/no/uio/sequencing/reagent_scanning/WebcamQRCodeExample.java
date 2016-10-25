@@ -3,11 +3,13 @@ package no.uio.sequencing.reagent_scanning;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.image.BufferedImage;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
 
 import com.github.sarxos.webcam.Webcam;
@@ -41,7 +43,12 @@ public class WebcamQRCodeExample extends JFrame implements Runnable, ThreadFacto
 
 		Dimension size = WebcamResolution.QVGA.getSize();
 
-		webcam = Webcam.getWebcams().get(0);
+		List<Webcam> webcams = Webcam.getWebcams();
+		if (webcams.isEmpty()) {
+			JOptionPane.showMessageDialog(null, "No webcam detected");
+			System.exit(1);
+		}
+		webcam = webcams.get(0);
 		webcam.setViewSize(size);
 
 		panel = new WebcamPanel(webcam);
@@ -54,6 +61,7 @@ public class WebcamQRCodeExample extends JFrame implements Runnable, ThreadFacto
 		add(panel);
 		add(textarea);
 
+		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		pack();
 		setVisible(true);
 

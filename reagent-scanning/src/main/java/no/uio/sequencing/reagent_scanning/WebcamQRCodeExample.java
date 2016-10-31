@@ -3,13 +3,13 @@ package no.uio.sequencing.reagent_scanning;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.image.BufferedImage;
-import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.JTextArea;
 
 import com.github.sarxos.webcam.Webcam;
@@ -24,39 +24,38 @@ import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 
 
-public class WebcamQRCodeExample extends JFrame implements Runnable, ThreadFactory {
+public class WebcamQRCodeExample extends JFrame implements Runnable {
 
-	private static final long serialVersionUID = 6441489157408381878L;
-
-	private Executor executor = Executors.newSingleThreadExecutor(this);
+	private static final long serialVersionUID = 6441489127408381878L;
 
 	private Webcam webcam = null;
-	private WebcamPanel panel = null;
+	private JPanel panel = null;
 	private JTextArea textarea = null;
 
 	public WebcamQRCodeExample() {
 		super();
-
+		
 		setLayout(new FlowLayout());
-		setTitle("Read QR / Bar Code With Webcam");
+		setTitle("Scanner (moose) application");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-		Dimension size = WebcamResolution.QVGA.getSize();
-
-		List<Webcam> webcams = Webcam.getWebcams();
-		if (webcams.isEmpty()) {
-			JOptionPane.showMessageDialog(null, "No webcam detected");
-			System.exit(1);
+		Dimension size = new Dimension(1920, 1080);
+		webcam = Webcam.getDefault();
+		if (webcam == null) {
+			JOptionPane.showMessageDialog(null, "Error: No webcam detected");
+			panel = new JPanel();
 		}
-		webcam = webcams.get(0);
-		webcam.setViewSize(size);
+		else {
+			webcam.setCustomViewSizes(new Dimension[] {size});
+			webcam.setViewSize(size);
+			panel = new WebcamPanel(webcam);
+		}
 
-		panel = new WebcamPanel(webcam);
-		panel.setPreferredSize(size);
+		//panel.setPreferredSize(size);
 
 		textarea = new JTextArea();
 		textarea.setEditable(false);
-		textarea.setPreferredSize(size);
+		//textarea.setPreferredSize(size);
 
 		add(panel);
 		add(textarea);
@@ -65,7 +64,9 @@ public class WebcamQRCodeExample extends JFrame implements Runnable, ThreadFacto
 		pack();
 		setVisible(true);
 
-		executor.execute(this);
+		Thread thread = new Thread(this);
+		thread.setDaemon(true);
+		thread.start();
 	}
 
 	public void run() {
@@ -80,7 +81,7 @@ public class WebcamQRCodeExample extends JFrame implements Runnable, ThreadFacto
 			Result result = null;
 			BufferedImage image = null;
 
-			if (webcam.isOpen()) {
+			if (webcam != null && webcam.isOpen()) {
 
 				if ((image = webcam.getImage()) == null) {
 					continue;
@@ -101,12 +102,6 @@ public class WebcamQRCodeExample extends JFrame implements Runnable, ThreadFacto
 			}
 
 		} while (true);
-	}
-
-	public Thread newThread(Runnable r) {
-		Thread t = new Thread(r, "example-runner");
-		t.setDaemon(true);
-		return t;
 	}
 
 	public static void main(String[] args) {

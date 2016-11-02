@@ -2,6 +2,8 @@ package no.uio.sequencing.reagent_scanning;
 
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -22,43 +24,70 @@ import com.google.zxing.NotFoundException;
 import com.google.zxing.Result;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
+import javax.swing.GroupLayout;
+import javax.swing.GroupLayout.Alignment;
+import javax.swing.JSplitPane;
+import javax.swing.BoxLayout;
+import javax.swing.JLabel;
+import java.awt.Color;
+import java.awt.BorderLayout;
+import java.awt.Font;
 
 
-public class WebcamQRCodeExample extends JFrame implements Runnable {
+public class WebcamScanner extends JFrame implements Runnable {
 
 	private static final long serialVersionUID = 6441489127408381878L;
 
 	private Webcam webcam = null;
-	private JPanel panel = null;
 	private JTextArea textarea = null;
 
-	public WebcamQRCodeExample() {
+	public WebcamScanner() {
 		super();
-		
-		setLayout(new FlowLayout());
 		setTitle("Scanner (moose) application");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-		Dimension size = new Dimension(1920, 1080);
+		
+		final Dimension fullHd = new Dimension(1920, 1080);
 		webcam = Webcam.getDefault();
 		if (webcam == null) {
 			JOptionPane.showMessageDialog(null, "Error: No webcam detected");
-			panel = new JPanel();
+			System.exit(1);
 		}
 		else {
-			webcam.setCustomViewSizes(new Dimension[] {size});
-			webcam.setViewSize(size);
-			panel = new WebcamPanel(webcam);
+			webcam.setCustomViewSizes(new Dimension[] {fullHd});
+			webcam.setViewSize(fullHd);
 		}
-
-		//panel.setPreferredSize(size);
-
-		textarea = new JTextArea();
-		textarea.setEditable(false);
-		//textarea.setPreferredSize(size);
-
-		add(panel);
-		add(textarea);
+		getContentPane().setLayout(new BorderLayout(0, 0));
+		
+		JSplitPane splitPane = new JSplitPane();
+		splitPane.setResizeWeight(0.5);
+		
+		JPanel textPanel = new JPanel();
+		splitPane.setRightComponent(textPanel);
+		textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+		
+		JPanel scanningPanel = new JPanel();
+		scanningPanel.setBackground(new Color(230, 230, 250));
+		textPanel.add(scanningPanel);
+		
+		JTextArea scanningText = new JTextArea();
+		scanningText.setColumns(8);
+		scanningText.setEditable(false);
+		scanningText.setFont(new Font("Lucida Grande", Font.PLAIN, 16));
+		scanningText.setText("Scanning...");
+		scanningText.setBackground(Color.BLUE);
+		scanningText.setForeground(Color.WHITE);
+		scanningPanel.add(scanningText);
+		
+		JPanel resultPanel = new JPanel();
+		textPanel.add(resultPanel);
+		getContentPane().add(splitPane);
+		
+		JPanel webcamPanel = new JPanel();
+		if (webcam != null) {
+			webcamPanel = new WebcamPanel(webcam);
+		}
+		webcamPanel.setPreferredSize(WebcamResolution.VGA.getSize());
+		splitPane.setLeftComponent(webcamPanel);
 
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		pack();
@@ -105,6 +134,6 @@ public class WebcamQRCodeExample extends JFrame implements Runnable {
 	}
 
 	public static void main(String[] args) {
-		new WebcamQRCodeExample();
+		new WebcamScanner();
 	}
 }

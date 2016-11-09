@@ -32,6 +32,8 @@ import javax.swing.JLabel;
 import java.awt.Color;
 import java.awt.BorderLayout;
 import java.awt.Font;
+import javax.swing.JTextField;
+import java.awt.Component;
 
 
 public class WebcamScanner extends JFrame implements Runnable {
@@ -40,13 +42,17 @@ public class WebcamScanner extends JFrame implements Runnable {
 
 	private Webcam webcam = null;
 	private JTextArea textarea = null;
+	private JTextField scanRef;
+	private JTextField scanLot;
+	private JTextField scanRgt;
+	private JTextField scanDate;
 
 	public WebcamScanner() {
 		super();
 		setTitle("Scanner (moose) application");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		final Dimension fullHd = new Dimension(1920, 1080);
+		final Dimension fullHd = new Dimension(1280, 1024);
 		webcam = Webcam.getDefault();
 		if (webcam == null) {
 			JOptionPane.showMessageDialog(null, "Error: No webcam detected");
@@ -66,10 +72,13 @@ public class WebcamScanner extends JFrame implements Runnable {
 		textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
 		
 		JPanel scanningPanel = new JPanel();
+		scanningPanel.setAlignmentY(0.0f);
 		scanningPanel.setBackground(new Color(230, 230, 250));
 		textPanel.add(scanningPanel);
+		scanningPanel.setLayout(new BoxLayout(scanningPanel, BoxLayout.Y_AXIS));
 		
 		JTextArea scanningText = new JTextArea();
+		scanningText.setAlignmentY(0.0f);
 		scanningText.setColumns(8);
 		scanningText.setEditable(false);
 		scanningText.setFont(new Font("Lucida Grande", Font.PLAIN, 16));
@@ -77,6 +86,44 @@ public class WebcamScanner extends JFrame implements Runnable {
 		scanningText.setBackground(Color.BLUE);
 		scanningText.setForeground(Color.WHITE);
 		scanningPanel.add(scanningText);
+		
+		JPanel scanBox = new JPanel();
+		scanBox.setAlignmentY(0.0f);
+		scanningPanel.add(scanBox);
+		scanBox.setBackground(Color.BLUE);
+		scanBox.setLayout(new GridLayout(0, 2, 0, 0));
+		
+		JLabel lblRefBox = new JLabel("REF");
+		lblRefBox.setForeground(Color.WHITE);
+		scanBox.add(lblRefBox);
+		
+		scanRef = new JTextField();
+		scanBox.add(scanRef);
+		scanRef.setColumns(10);
+		
+		JLabel lblLot = new JLabel("LOT");
+		lblLot.setForeground(Color.WHITE);
+		scanBox.add(lblLot);
+		
+		scanLot = new JTextField();
+		scanBox.add(scanLot);
+		scanLot.setColumns(10);
+		
+		JLabel lblRgt = new JLabel("RGT");
+		lblRgt.setForeground(Color.WHITE);
+		scanBox.add(lblRgt);
+		
+		scanRgt = new JTextField();
+		scanBox.add(scanRgt);
+		scanRgt.setColumns(10);
+		
+		JLabel lblDate = new JLabel("Date");
+		lblDate.setForeground(Color.WHITE);
+		scanBox.add(lblDate);
+		
+		scanDate = new JTextField();
+		scanBox.add(scanDate);
+		scanDate.setColumns(10);
 		
 		JPanel resultPanel = new JPanel();
 		textPanel.add(resultPanel);

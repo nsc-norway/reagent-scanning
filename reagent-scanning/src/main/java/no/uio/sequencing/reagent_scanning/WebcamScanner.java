@@ -24,6 +24,8 @@ import com.google.zxing.NotFoundException;
 import com.google.zxing.Result;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
+import com.google.zxing.multi.GenericMultipleBarcodeReader;
+
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
 import javax.swing.JSplitPane;
@@ -41,7 +43,6 @@ public class WebcamScanner extends JFrame implements Runnable {
 	private static final long serialVersionUID = 6441489127408381878L;
 
 	private Webcam webcam = null;
-	private JTextArea textarea = null;
 	private JTextField scanRef;
 	private JTextField scanLot;
 	private JTextField scanRgt;
@@ -52,15 +53,15 @@ public class WebcamScanner extends JFrame implements Runnable {
 		setTitle("Scanner (moose) application");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		final Dimension fullHd = new Dimension(1280, 1024);
+		final Dimension res = new Dimension(1024, 768);
 		webcam = Webcam.getDefault();
 		if (webcam == null) {
 			JOptionPane.showMessageDialog(null, "Error: No webcam detected");
 			System.exit(1);
 		}
 		else {
-			webcam.setCustomViewSizes(new Dimension[] {fullHd});
-			webcam.setViewSize(fullHd);
+			webcam.setCustomViewSizes(new Dimension[] {res});
+			webcam.setViewSize(res);
 		}
 		getContentPane().setLayout(new BorderLayout(0, 0));
 		
@@ -147,6 +148,9 @@ public class WebcamScanner extends JFrame implements Runnable {
 
 	public void run() {
 
+		MultiFormatReader mfReader = new MultiFormatReader();
+		GenericMultipleBarcodeReader reader = new GenericMultipleBarcodeReader(mfReader);
+		
 		do {
 			try {
 				Thread.sleep(100);
@@ -154,7 +158,7 @@ public class WebcamScanner extends JFrame implements Runnable {
 				e.printStackTrace();
 			}
 
-			Result result = null;
+			Result [] results = {};
 			BufferedImage image = null;
 
 			if (webcam != null && webcam.isOpen()) {
@@ -167,14 +171,18 @@ public class WebcamScanner extends JFrame implements Runnable {
 				BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
 
 				try {
-					result = new MultiFormatReader().decode(bitmap);
+					results = reader.decodeMultiple(bitmap);
 				} catch (NotFoundException e) {
 					// fall thru, it means there is no QR code in image
 				}
 			}
 
-			if (result != null) {
-				textarea.setText(result.getText());
+			int pointer = 0;
+			final JTextField[] destination = {scanRef, scanLot, scanRgt};
+			for (Result r : results) {
+				if (pointer < destination.length) {
+					destination[pointer++].setText(r.getText());
+				}
 			}
 
 		} while (true);

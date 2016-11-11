@@ -184,7 +184,10 @@ public class WebcamScanner extends JFrame implements Runnable {
 					destination[pointer++].setText(r.getText());
 				}
 			}
-
+			if (results.length >= 2) {
+				// TODO check for different result than previous &
+				// save if appropriate
+			}
 		} while (true);
 	}
 

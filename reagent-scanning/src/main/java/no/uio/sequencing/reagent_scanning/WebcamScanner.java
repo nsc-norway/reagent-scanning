@@ -5,6 +5,10 @@ import java.awt.FlowLayout;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -17,7 +21,9 @@ import javax.swing.JTextArea;
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamPanel;
 import com.github.sarxos.webcam.WebcamResolution;
+import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
+import com.google.zxing.DecodeHintType;
 import com.google.zxing.LuminanceSource;
 import com.google.zxing.MultiFormatReader;
 import com.google.zxing.NotFoundException;
@@ -42,11 +48,16 @@ public class WebcamScanner extends JFrame implements Runnable {
 
 	private static final long serialVersionUID = 6441489127408381878L;
 
+	private static final long EQUAL_SCAN_DEBOUNCE = 500;
+
 	private Webcam webcam = null;
 	private JTextField scanRef;
 	private JTextField scanLot;
 	private JTextField scanRgt;
 	private JTextField scanDate;
+	
+	private String prevRef, prevLot, prevRgt;
+	long prevScanTime;
 
 	public WebcamScanner() {
 		super();
@@ -148,7 +159,13 @@ public class WebcamScanner extends JFrame implements Runnable {
 
 	public void run() {
 
-		MultiFormatReader mfReader = new MultiFormatReader();
+		final MultiFormatReader mfReader = new MultiFormatReader();
+		final List<BarcodeFormat> allowedFormats = new ArrayList<>();
+		allowedFormats.add(BarcodeFormat.CODE_128);
+		allowedFormats.add(BarcodeFormat.DATA_MATRIX);
+		final HashMap<DecodeHintType, Object> hints = new HashMap<>();
+		hints.put(DecodeHintType.POSSIBLE_FORMATS, allowedFormats);
+		mfReader.setHints(hints);
 		GenericMultipleBarcodeReader reader = new GenericMultipleBarcodeReader(mfReader);
 		
 		do {
@@ -185,10 +202,32 @@ public class WebcamScanner extends JFrame implements Runnable {
 				}
 			}
 			if (results.length >= 2) {
-				// TODO check for different result than previous &
-				// save if appropriate
+				newCandidateEntered(results);
 			}
 		} while (true);
+	}
+	
+	protected void newCandidateEntered(Result[] results) {
+		if (results.length > 2) {
+			String ref = results[0].getText();
+			boolean sameAsBefore = true;
+			sameAsBefore &= ref.equals(prevRef);
+			if (results.length == 2) {
+				sameAsBefore &= results[1].equals(prevLot);
+				sameAsBefore &= (System.currentTimeMillis() - prevScanTime) > EQUAL_SCAN_DEBOUNCE;
+			}
+			else if (results.length == 3) {
+				sameAsBefore &= (results[1].getText().equals(prevLot));
+				sameAsBefore &= (results[2].getText().equals(prevRgt));
+			}
+			else {
+				JOptionPane.showMessageDialog(null, "Error: Too many barcodes (TODO: disable this message)");
+			}
+			
+			if (!sameAsBefore) {
+				
+			}
+		}
 	}
 
 	public static void main(String[] args) {

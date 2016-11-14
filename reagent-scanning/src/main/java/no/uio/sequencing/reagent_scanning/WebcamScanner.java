@@ -189,10 +189,14 @@ public class WebcamScanner extends JFrame implements Runnable {
 
 			if (webcam != null && webcam.isOpen()) {
 
-				if ((image = webcam.getImage()) == null) {
+				/*if ((image = webcam.getImage()) == null) {
 					continue;
+				}*/
+				try {
+					image = ImageIO.read(new File("resources/test_image.png"));
+				} catch (IOException e1) {
 				}
-
+				
 				LuminanceSource source = new BufferedImageLuminanceSource(image);
 				BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
 

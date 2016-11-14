@@ -5,6 +5,8 @@ import java.awt.FlowLayout;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -34,9 +36,13 @@ import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.multi.GenericMultipleBarcodeReader;
 
+import net.sourceforge.tess4j.ITesseract;
+import net.sourceforge.tess4j.Tesseract;
+
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
 import javax.swing.JSplitPane;
+import javax.imageio.ImageIO;
 import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import java.awt.Color;
@@ -208,13 +214,26 @@ public class WebcamScanner extends JFrame implements Runnable {
 					destination[pointer++].setText(text);
 				}
 			}
-			if (results.length > 0) {
-				for (; pointer < destination.length; ++pointer) {
-					destination[pointer].setText("");
-				}
+			for (; pointer < destination.length; ++pointer) {
+				destination[pointer].setText("");
 			}
-			if (results.length >= 2) {
-				newCandidateEntered(new ArrayList<String>(resultMap.values()));
+			List<String> data = new ArrayList<String>(resultMap.values());
+			ScanResultsSaver saver = new ScanResultsSaver(data);
+			if (saver.isValid()) {
+				scanDate.setText("Processing...");
+				File outFileTest = new File("/tmp/marius.png");
+				try {
+					ImageIO.write(image, "png", outFileTest);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				if (saver.scanExpiryDate(image)) {
+					scanDate.setText(saver.getExpiryDate());
+				}
+				else {
+					scanDate.setText("");
+				}
 			}
 		} while (true);
 	}
@@ -238,6 +257,7 @@ public class WebcamScanner extends JFrame implements Runnable {
 			
 			if (!sameAsBefore) {
 				if (barcodes.size() == 2) {
+					//tess.doOCR(arg0)
 					JOptionPane.showMessageDialog(null, "**SCAN COMPLETE**\nREF: " + ref + "\nLOT: " + barcodes.get(1));
 				}
 				else {

@@ -6,9 +6,11 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -64,7 +66,7 @@ public class WebcamScanner extends JFrame implements Runnable {
 		setTitle("Scanner (moose) application");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		final Dimension res = new Dimension(1024, 768);
+		final Dimension res = new Dimension(1920, 1080);
 		webcam = Webcam.getDefault();
 		if (webcam == null) {
 			JOptionPane.showMessageDialog(null, "Error: No webcam detected");
@@ -165,6 +167,7 @@ public class WebcamScanner extends JFrame implements Runnable {
 		allowedFormats.add(BarcodeFormat.DATA_MATRIX);
 		final HashMap<DecodeHintType, Object> hints = new HashMap<>();
 		hints.put(DecodeHintType.POSSIBLE_FORMATS, allowedFormats);
+		hints.put(DecodeHintType.TRY_HARDER, true);
 		mfReader.setHints(hints);
 		GenericMultipleBarcodeReader reader = new GenericMultipleBarcodeReader(mfReader);
 		
@@ -194,38 +197,52 @@ public class WebcamScanner extends JFrame implements Runnable {
 				}
 			}
 
-			int pointer = 0;
 			final JTextField[] destination = {scanRef, scanLot, scanRgt};
+			Map<Float,String> resultMap = new TreeMap<>();
 			for (Result r : results) {
+				resultMap.put(r.getResultPoints()[0].getY(), r.getText());
+			}
+			int pointer = 0;
+			for (String text : resultMap.values()) {
 				if (pointer < destination.length) {
-					destination[pointer++].setText(r.getText());
+					destination[pointer++].setText(text);
+				}
+			}
+			if (results.length > 0) {
+				for (; pointer < destination.length; ++pointer) {
+					destination[pointer].setText("");
 				}
 			}
 			if (results.length >= 2) {
-				newCandidateEntered(results);
+				newCandidateEntered(new ArrayList<String>(resultMap.values()));
 			}
 		} while (true);
 	}
 	
-	protected void newCandidateEntered(Result[] results) {
-		if (results.length > 2) {
-			String ref = results[0].getText();
+	protected void newCandidateEntered(List<String> barcodes) {
+		if (barcodes.size() > 2) {
+			String ref = barcodes.get(0);
 			boolean sameAsBefore = true;
 			sameAsBefore &= ref.equals(prevRef);
-			if (results.length == 2) {
-				sameAsBefore &= results[1].equals(prevLot);
+			if (barcodes.size() == 2) {
+				sameAsBefore &= barcodes.get(1).equals(prevLot);
 				sameAsBefore &= (System.currentTimeMillis() - prevScanTime) > EQUAL_SCAN_DEBOUNCE;
 			}
-			else if (results.length == 3) {
-				sameAsBefore &= (results[1].getText().equals(prevLot));
-				sameAsBefore &= (results[2].getText().equals(prevRgt));
+			else if (barcodes.size() == 3) {
+				sameAsBefore &= (barcodes.get(1).equals(prevLot));
+				sameAsBefore &= (barcodes.get(2).equals(prevRgt));
 			}
 			else {
 				JOptionPane.showMessageDialog(null, "Error: Too many barcodes (TODO: disable this message)");
 			}
 			
 			if (!sameAsBefore) {
-				
+				if (barcodes.size() == 2) {
+					JOptionPane.showMessageDialog(null, "**SCAN COMPLETE**\nREF: " + ref + "\nLOT: " + barcodes.get(1));
+				}
+				else {
+					JOptionPane.showMessageDialog(null, "**SCAN COMPLETE**\nREF: " + ref + "\nLOT: " + barcodes.get(1) + "\nRGT: " + barcodes.get(2));
+				}
 			}
 		}
 	}

@@ -18,6 +18,10 @@ public class ScanResultsSaver {
 	
 	public ScanResultsSaver(List<String> barcodes) {
 		this.barcodes = barcodes;
+		tess.setPageSegMode(6);
+		tess.setTessVariable("load_system_dawg", "0");
+		tess.setTessVariable("load_freq_dawg", "0");
+		tess.setTessVariable("tessedit_char_whitelist", "01234567890/ ");
 		if (barcodes.size() > 1) {
 			kit = getKit(barcodes.get(0));
 		}
@@ -40,7 +44,6 @@ public class ScanResultsSaver {
 		try {
 			String text = tess.doOCR(image);
 			JOptionPane.showMessageDialog(null, "OCR'd text: " + text);
-
 			return true;
 		} catch (TesseractException e) {
 			return false;

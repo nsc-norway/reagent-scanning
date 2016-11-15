@@ -4,6 +4,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -23,6 +24,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 
 import com.github.sarxos.webcam.Webcam;
+import com.github.sarxos.webcam.WebcamImageTransformer;
 import com.github.sarxos.webcam.WebcamPanel;
 import com.github.sarxos.webcam.WebcamResolution;
 import com.google.zxing.BarcodeFormat;
@@ -48,11 +50,14 @@ import javax.swing.JLabel;
 import java.awt.Color;
 import java.awt.BorderLayout;
 import java.awt.Font;
+import java.awt.Graphics2D;
+
 import javax.swing.JTextField;
 import java.awt.Component;
+import javax.swing.UIManager;
 
 
-public class WebcamScanner extends JFrame implements Runnable {
+public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer {
 
 	private static final long serialVersionUID = 6441489127408381878L;
 
@@ -66,13 +71,15 @@ public class WebcamScanner extends JFrame implements Runnable {
 	
 	private String prevRef, prevLot, prevRgt;
 	long prevScanTime;
+	ScanResultsWorkflow workflow = null;
+	
 
 	public WebcamScanner() {
 		super();
 		setTitle("Scanner (moose) application");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		final Dimension res = new Dimension(1920, 1080);
+		final Dimension res = new Dimension(1280, 1024);
 		webcam = Webcam.getDefault();
 		if (webcam == null) {
 			JOptionPane.showMessageDialog(null, "Error: No webcam detected");
@@ -81,6 +88,7 @@ public class WebcamScanner extends JFrame implements Runnable {
 		else {
 			webcam.setCustomViewSizes(new Dimension[] {res});
 			webcam.setViewSize(res);
+			webcam.setImageTransformer(this);
 		}
 		getContentPane().setLayout(new BorderLayout(0, 0));
 		
@@ -97,24 +105,16 @@ public class WebcamScanner extends JFrame implements Runnable {
 		textPanel.add(scanningPanel);
 		scanningPanel.setLayout(new BoxLayout(scanningPanel, BoxLayout.Y_AXIS));
 		
-		JTextArea scanningText = new JTextArea();
-		scanningText.setAlignmentY(0.0f);
-		scanningText.setColumns(8);
-		scanningText.setEditable(false);
-		scanningText.setFont(new Font("Lucida Grande", Font.PLAIN, 16));
-		scanningText.setText("Scanning...");
-		scanningText.setBackground(Color.BLUE);
-		scanningText.setForeground(Color.WHITE);
-		scanningPanel.add(scanningText);
+		JLabel statusLabel = new JLabel("[status here]");
+		statusLabel.setFont(new Font("Lucida Grande", Font.PLAIN, 20));
+		scanningPanel.add(statusLabel);
 		
 		JPanel scanBox = new JPanel();
-		scanBox.setAlignmentY(0.0f);
 		scanningPanel.add(scanBox);
-		scanBox.setBackground(Color.BLUE);
+		scanBox.setBackground(UIManager.getColor("Panel.background"));
 		scanBox.setLayout(new GridLayout(0, 2, 0, 0));
 		
 		JLabel lblRefBox = new JLabel("REF");
-		lblRefBox.setForeground(Color.WHITE);
 		scanBox.add(lblRefBox);
 		
 		scanRef = new JTextField();
@@ -122,7 +122,6 @@ public class WebcamScanner extends JFrame implements Runnable {
 		scanRef.setColumns(10);
 		
 		JLabel lblLot = new JLabel("LOT");
-		lblLot.setForeground(Color.WHITE);
 		scanBox.add(lblLot);
 		
 		scanLot = new JTextField();
@@ -130,7 +129,6 @@ public class WebcamScanner extends JFrame implements Runnable {
 		scanLot.setColumns(10);
 		
 		JLabel lblRgt = new JLabel("RGT");
-		lblRgt.setForeground(Color.WHITE);
 		scanBox.add(lblRgt);
 		
 		scanRgt = new JTextField();
@@ -138,7 +136,6 @@ public class WebcamScanner extends JFrame implements Runnable {
 		scanRgt.setColumns(10);
 		
 		JLabel lblDate = new JLabel("Date");
-		lblDate.setForeground(Color.WHITE);
 		scanBox.add(lblDate);
 		
 		scanDate = new JTextField();
@@ -185,17 +182,20 @@ public class WebcamScanner extends JFrame implements Runnable {
 			}
 
 			Result [] results = {};
-			BufferedImage image = null;
+			BufferedImage image = null, mirrorImage = null;
 
 			if (webcam != null && webcam.isOpen()) {
 
-				/*if ((image = webcam.getImage()) == null) {
+				if ((mirrorImage = webcam.getImage()) == null) {
 					continue;
-				}*/
-				try {
+				}
+				image = transform(mirrorImage);
+				/*
+				 * Debug: Read from local file instead
+				 * try {
 					image = ImageIO.read(new File("resources/test_image.png"));
 				} catch (IOException e1) {
-				}
+				}*/
 				
 				LuminanceSource source = new BufferedImageLuminanceSource(image);
 				BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
@@ -221,19 +221,14 @@ public class WebcamScanner extends JFrame implements Runnable {
 			for (; pointer < destination.length; ++pointer) {
 				destination[pointer].setText("");
 			}
+			scanDate.setText("");
 			List<String> data = new ArrayList<String>(resultMap.values());
-			ScanResultsSaver saver = new ScanResultsSaver(data);
-			if (saver.isValid()) {
+			workflow = new ScanResultsWorkflow(data);
+			if (workflow.isValid()) {
 				scanDate.setText("Processing...");
-				File outFileTest = new File("/tmp/marius.png");
-				try {
-					ImageIO.write(image, "png", outFileTest);
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				if (saver.scanExpiryDate(image)) {
-					scanDate.setText(saver.getExpiryDate());
+				if (workflow.scanExpiryDate(image)) {
+					scanDate.setText(workflow.getExpiryDate());
+					
 				}
 				else {
 					scanDate.setText("");
@@ -242,36 +237,25 @@ public class WebcamScanner extends JFrame implements Runnable {
 		} while (true);
 	}
 	
-	protected void newCandidateEntered(List<String> barcodes) {
-		if (barcodes.size() > 2) {
-			String ref = barcodes.get(0);
-			boolean sameAsBefore = true;
-			sameAsBefore &= ref.equals(prevRef);
-			if (barcodes.size() == 2) {
-				sameAsBefore &= barcodes.get(1).equals(prevLot);
-				sameAsBefore &= (System.currentTimeMillis() - prevScanTime) > EQUAL_SCAN_DEBOUNCE;
-			}
-			else if (barcodes.size() == 3) {
-				sameAsBefore &= (barcodes.get(1).equals(prevLot));
-				sameAsBefore &= (barcodes.get(2).equals(prevRgt));
-			}
-			else {
-				JOptionPane.showMessageDialog(null, "Error: Too many barcodes (TODO: disable this message)");
-			}
-			
-			if (!sameAsBefore) {
-				if (barcodes.size() == 2) {
-					//tess.doOCR(arg0)
-					JOptionPane.showMessageDialog(null, "**SCAN COMPLETE**\nREF: " + ref + "\nLOT: " + barcodes.get(1));
-				}
-				else {
-					JOptionPane.showMessageDialog(null, "**SCAN COMPLETE**\nREF: " + ref + "\nLOT: " + barcodes.get(1) + "\nRGT: " + barcodes.get(2));
-				}
-			}
-		}
-	}
+	
 
 	public static void main(String[] args) {
 		new WebcamScanner();
+	}
+
+	@Override
+	public BufferedImage transform(BufferedImage image) {
+		// Mirror image
+		AffineTransform at = new AffineTransform();
+        at.concatenate(AffineTransform.getScaleInstance(-1, 1));
+        at.concatenate(AffineTransform.getTranslateInstance(-image.getWidth(), 0));
+        BufferedImage newImage = new BufferedImage(
+                image.getWidth(), image.getHeight(),
+                BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = newImage.createGraphics();
+        g.transform(at);
+        g.drawImage(image, 0, 0, null);
+        g.dispose();
+        return newImage;
 	}
 }

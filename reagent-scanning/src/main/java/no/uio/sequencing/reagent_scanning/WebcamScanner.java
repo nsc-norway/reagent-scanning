@@ -45,6 +45,10 @@ import com.google.zxing.multi.GenericMultipleBarcodeReader;
 
 import sun.audio.AudioPlayer;
 import sun.audio.AudioStream;
+import java.awt.FlowLayout;
+import javax.swing.JTextArea;
+import java.awt.Component;
+import javax.swing.Box;
 
 
 public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer {
@@ -52,6 +56,8 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	private static final long serialVersionUID = 6441489127408381878L;
 
 	private static final long EQUAL_SCAN_DEBOUNCE = 500;
+
+	private static final long ERROR_DISPLAY_TIME = 5000;
 
 	private Webcam webcam = null;
 	private JTextField scanRef;
@@ -61,10 +67,13 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	private JPanel scanningPanel;
 	private JLabel statusLabel;
 	
-	long prevScanTime;
+	long prevScanTime, lastErrorTime;
+	
 	ScanResultsWorkflow workflow = null;
 	
 	private WebTarget apiBaseTarget;
+
+	private JTextArea errorTextArea;
 	
 	enum Beep {
 		SUCCESSS,
@@ -142,8 +151,18 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		scanBox.add(scanDate);
 		scanDate.setColumns(10);
 		
-		JPanel resultPanel = new JPanel();
-		textPanel.add(resultPanel);
+		JLabel lblNewLabel = new JLabel("TES TEST TEST TESTE STES TEST TEST TEST");
+		lblNewLabel.setBackground(Color.PINK);
+		scanningPanel.add(lblNewLabel);
+		
+		errorTextArea = new JTextArea();
+		errorTextArea.setEditable(false);
+		errorTextArea.setText("");
+		errorTextArea.setBackground(UIManager.getColor("Panel.background"));
+		scanningPanel.add(errorTextArea);
+		
+		JPanel padding = new JPanel();
+		scanningPanel.add(padding);
 		getContentPane().add(splitPane);
 		
 		JPanel webcamPanel = new JPanel();
@@ -155,6 +174,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		pack();
+		
 		setVisible(true);
 
 		Client client = ClientBuilder.newClient();		
@@ -228,37 +248,57 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			}
 			scanDate.setText("");
 			scanDate.setBackground(UIManager.getColor("TextArea.background"));
+
+			long now = System.currentTimeMillis();
+			if (now - lastErrorTime > ERROR_DISPLAY_TIME && results.length > 1) {
+				errorTextArea.setText("");
+				errorTextArea.setBackground(UIManager.getColor("Panel.background"));
+			}
+			
 			List<String> data = new ArrayList<String>(resultMap.values());
 			if (data.size() >= 2) {
-			try { // Globally catch IO exceptions (communication error)
+				try { // Globally catch IO exceptions (communication error)
+					if (workflow == null || !workflow.ref.equals(data.get(0))) {
+						statusLabel.setText("Kit lookup...");
+						workflow = new ScanResultsWorkflow(apiBaseTarget, data.get(0));
+					}
+					workflow.loadKit();
+					workflow.setBarcodes(data);
+					
 					scanningPanel.setBackground(new Color(250, 250, 230));
-					statusLabel.setText("Kit lookup...");
-					workflow = new ScanResultsWorkflow(apiBaseTarget, data);
-					if (workflow.isValidBarcodes()) {
-						beep(Beep.INFO);
-						statusLabel.setText("Reading date...");
-						if (workflow.scanExpiryDate(image)) {
-							scanDate.setText(workflow.getExpiryDateString());
-							if (workflow.valiDate()) {
-								workflow.save();
-							}
-							else {
-								scanDate.setBackground(Color.ORANGE);
-							}
-						}
-						else {
-							scanDate.setText("");
-						}
-						if (workflow.isCompleted()) {
-							beep(Beep.SUCCESSS);
-						}
-						else {
-							beep(Beep.FAIL);
-						}
+					beep(Beep.INFO);
+					statusLabel.setText("Reading date...");
+					workflow.scanExpiryDate(image);
+					scanDate.setText(workflow.getExpiryDateString());
+					if (workflow.valiDate()) {
+						statusLabel.setText("Saving...");
+						workflow.save();
+						scanningPanel.setBackground(new Color(230, 250, 230));
+						statusLabel.setText("✓ Lot saved");
+					}
+					else {
+						scanDate.setBackground(Color.ORANGE);
+						errorTextArea.setText("Unable to detect the date.");
+					}
+					if (workflow.isCompleted()) {
+						beep(Beep.SUCCESSS);
+					}
+					else {
+						//errorTextArea.setText("General failure");
+						//errorTextArea.setBackground(Color.PINK);
 					}
 				}
 				catch (IOException e) {
 					JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
+				} catch (InvalidBarcodeSetException e) {
+				} catch (KitNotFoundException e) {
+					errorTextArea.setText(e.getMessage());
+					errorTextArea.setBackground(Color.PINK);
+					lastErrorTime = now;
+				} catch (DateParsingException e) {
+					errorTextArea.setText("Unable to find the expiry date.");
+					errorTextArea.setBackground(Color.PINK);
+					lastErrorTime = now;
 				}
 			}
 		} while (true);

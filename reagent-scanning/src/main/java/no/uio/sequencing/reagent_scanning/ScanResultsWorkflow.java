@@ -21,10 +21,12 @@ import net.sourceforge.tess4j.TesseractException;
 
 public class ScanResultsWorkflow {
 
-	public final Kit kit;
-	public final List<String> barcodes;
+	public final String ref;
+	public Kit kit;
+	public List<String> barcodes;
 	private Date expiryDate;
 	private boolean completed = false;
+	long negCache = 0;
 	private final WebTarget apiBase;
 	
 	
@@ -32,6 +34,7 @@ public class ScanResultsWorkflow {
 	// Here comes another millennium bug
 	private final static Pattern datePattern = Pattern.compile("\\b(20[1-9]\\d/[01]\\d/[0123]\\d)\\b");
 	private final static SimpleDateFormat dt1 = new SimpleDateFormat("yyyyy/mm/dd");
+	private static final long CACHE_TIME = 5000;
 	
 	static {
 		// Tesseract initialisation
@@ -41,32 +44,39 @@ public class ScanResultsWorkflow {
 		//tess.setTessVariable("tessedit_char_whitelist", "01234567890/ ");
 	}
 	
-	public ScanResultsWorkflow(WebTarget apiBase, List<String> barcodes) throws IOException {
-		this.barcodes = barcodes;
+	public ScanResultsWorkflow(WebTarget apiBase, String ref) {
 		this.apiBase = apiBase;
-		if (barcodes.size() > 1) {
-			kit = getKit(barcodes.get(0));
-		}
-		else {
-			kit = null;
-		}
+		this.ref = ref;
 	}
 
-	private Kit getKit(String ref) {
+	public void loadKit() throws KitNotFoundException {
+		this.completed = false;
+		if (System.currentTimeMillis() - negCache < CACHE_TIME)
+			throw new KitNotFoundException("Kit " + ref + " not found.");
+
 		try {
-			return apiBase.path("kits").path(ref).request(MediaType.APPLICATION_JSON_TYPE).get(Kit.class);
-		} catch (NotFoundException e) {
-			return null;
+			kit = apiBase.path("kits").path(ref).request(MediaType.APPLICATION_JSON_TYPE).get(Kit.class);
+		}
+		catch (NotFoundException e) {
+			negCache = System.currentTimeMillis();
+			throw new KitNotFoundException("Kit " + ref + " not found.");
 		}
 	}
 	
-	public boolean isValidBarcodes() {
-		if (kit == null || barcodes == null) return false;
-		if (kit.requestLotName) return barcodes.size() == 3;
-		else return barcodes.size() == 2;
+	public void setBarcodes(List<String> barcodes) throws InvalidBarcodeSetException, IOException {
+		this.barcodes = barcodes;
+		this.completed = false;
+		
+		if (kit.requestLotName && barcodes.size() != 3) {
+			throw new InvalidBarcodeSetException("Need three barcodes for kit " + kit.ref + ".");
+		}
+		else if (!kit.requestLotName && barcodes.size() != 3) {
+			throw new InvalidBarcodeSetException("Need two barcodes for kit " + kit.ref + ".");
+		}
+
 	}
 	
-	public boolean scanExpiryDate(BufferedImage image) {
+	public void scanExpiryDate(BufferedImage image) throws DateParsingException {
 		try {
 			String text = tess.doOCR(image);
 
@@ -74,13 +84,12 @@ public class ScanResultsWorkflow {
 			Matcher m = datePattern.matcher(text);
 			if (m.find()) {
 				setExpiryDate(m.group(1));
-				return true;
 			}
 			else {
-				return false;
+				throw new DateParsingException();
 			}
 		} catch (TesseractException | ParseException e) {
-			return false;
+			throw new DateParsingException();
 		}
 	}
 	

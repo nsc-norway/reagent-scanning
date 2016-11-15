@@ -24,6 +24,9 @@ import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
 
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamImageTransformer;
@@ -55,10 +58,13 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	private JTextField scanLot;
 	private JTextField scanRgt;
 	private JTextField scanDate;
+	private JPanel scanningPanel;
 	private JLabel statusLabel;
 	
 	long prevScanTime;
 	ScanResultsWorkflow workflow = null;
+	
+	private WebTarget apiBaseTarget;
 	
 	enum Beep {
 		SUCCESSS,
@@ -67,7 +73,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	}
 	
 
-	public WebcamScanner() {
+	public WebcamScanner(String apiUrl) {
 		super();
 		setTitle("Scanner (moose) application");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -92,7 +98,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		splitPane.setRightComponent(textPanel);
 		textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
 		
-		JPanel scanningPanel = new JPanel();
+		scanningPanel = new JPanel();
 		scanningPanel.setAlignmentY(0.0f);
 		scanningPanel.setBackground(new Color(230, 230, 250));
 		textPanel.add(scanningPanel);
@@ -151,6 +157,9 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		pack();
 		setVisible(true);
 
+		Client client = ClientBuilder.newClient();		
+		apiBaseTarget = client.target(apiUrl);
+		
 		Thread thread = new Thread(this);
 		thread.setDaemon(true);
 		thread.start();
@@ -179,6 +188,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			BufferedImage image = null, mirrorImage = null;
 
 			statusLabel.setText("Scanning...");
+			scanningPanel.setBackground(new Color(230, 230, 250));
 			if (webcam != null && webcam.isOpen()) {
 
 				if ((mirrorImage = webcam.getImage()) == null) {
@@ -219,42 +229,48 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			scanDate.setText("");
 			scanDate.setBackground(UIManager.getColor("TextArea.background"));
 			List<String> data = new ArrayList<String>(resultMap.values());
+			if (data.size() >= 2) {
 			try { // Globally catch IO exceptions (communication error)
-				statusLabel.setText("Kit lookup...");
-				workflow = new ScanResultsWorkflow(data);
-				if (workflow.isValidBarcodes()) {
-					beep(Beep.INFO);
-					statusLabel.setText("Processing...");
-					if (workflow.scanExpiryDate(image)) {
-						scanDate.setText(workflow.getExpiryDateString());
-						if (workflow.valiDate()) {
-							workflow.save();
+					scanningPanel.setBackground(new Color(250, 250, 230));
+					statusLabel.setText("Kit lookup...");
+					workflow = new ScanResultsWorkflow(apiBaseTarget, data);
+					if (workflow.isValidBarcodes()) {
+						beep(Beep.INFO);
+						statusLabel.setText("Reading date...");
+						if (workflow.scanExpiryDate(image)) {
+							scanDate.setText(workflow.getExpiryDateString());
+							if (workflow.valiDate()) {
+								workflow.save();
+							}
+							else {
+								scanDate.setBackground(Color.ORANGE);
+							}
 						}
 						else {
-							scanDate.setBackground(Color.ORANGE);
+							scanDate.setText("");
+						}
+						if (workflow.isCompleted()) {
+							beep(Beep.SUCCESSS);
+						}
+						else {
+							beep(Beep.FAIL);
 						}
 					}
-					else {
-						scanDate.setText("");
-					}
-					if (workflow.isCompleted()) {
-						beep(Beep.SUCCESSS);
-					}
-					else {
-						beep(Beep.FAIL);
-					}
 				}
-			}
-			catch (IOException e) {
-				JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
+				catch (IOException e) {
+					JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
+				}
 			}
 		} while (true);
 	}
 	
-	
-
 	public static void main(String[] args) {
-		new WebcamScanner();
+		if (args.length >= 1) {
+			new WebcamScanner(args[0]);
+		}
+		else {
+			JOptionPane.showMessageDialog(null, "Error: WebcamScanner must be called with the base API URL as a command line argument.");
+		}
 	}
 
 	@Override

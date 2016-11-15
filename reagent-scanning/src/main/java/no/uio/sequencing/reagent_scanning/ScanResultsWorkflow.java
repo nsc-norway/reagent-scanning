@@ -11,6 +11,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.swing.JOptionPane;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
 
 import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.Tesseract;
@@ -18,21 +21,29 @@ import net.sourceforge.tess4j.TesseractException;
 
 public class ScanResultsWorkflow {
 
-	public final KitType kit;
+	public final Kit kit;
 	public final List<String> barcodes;
 	private Date expiryDate;
 	private boolean completed = false;
-	private final static ITesseract tess = new Tesseract();
-	// Here goes another millennium bug
-	private final Pattern datePattern = Pattern.compile("\\b(20[1-9]\\d/[01]\\d/[0123]\\d)\\b");
-	private final SimpleDateFormat dt1 = new SimpleDateFormat("yyyyy/mm/dd");
+	private final WebTarget apiBase;
 	
-	public ScanResultsWorkflow(List<String> barcodes) throws IOException {
-		this.barcodes = barcodes;
+	
+	private final static ITesseract tess = new Tesseract();
+	// Here comes another millennium bug
+	private final static Pattern datePattern = Pattern.compile("\\b(20[1-9]\\d/[01]\\d/[0123]\\d)\\b");
+	private final static SimpleDateFormat dt1 = new SimpleDateFormat("yyyyy/mm/dd");
+	
+	static {
+		// Tesseract initialisation
 		tess.setPageSegMode(6);
 		tess.setTessVariable("load_system_dawg", "0");
 		tess.setTessVariable("load_freq_dawg", "0");
 		//tess.setTessVariable("tessedit_char_whitelist", "01234567890/ ");
+	}
+	
+	public ScanResultsWorkflow(WebTarget apiBase, List<String> barcodes) throws IOException {
+		this.barcodes = barcodes;
+		this.apiBase = apiBase;
 		if (barcodes.size() > 1) {
 			kit = getKit(barcodes.get(0));
 		}
@@ -41,13 +52,17 @@ public class ScanResultsWorkflow {
 		}
 	}
 
-	private KitType getKit(String ref) {
-		return new KitType();
+	private Kit getKit(String ref) {
+		try {
+			return apiBase.path("kits").path(ref).request(MediaType.APPLICATION_JSON_TYPE).get(Kit.class);
+		} catch (NotFoundException e) {
+			return null;
+		}
 	}
 	
 	public boolean isValidBarcodes() {
 		if (kit == null || barcodes == null) return false;
-		if (kit.withUniqueId) return barcodes.size() == 3;
+		if (kit.requestLotName) return barcodes.size() == 3;
 		else return barcodes.size() == 2;
 	}
 	

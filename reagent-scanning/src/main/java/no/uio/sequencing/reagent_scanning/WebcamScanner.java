@@ -1,27 +1,29 @@
 package no.uio.sequencing.reagent_scanning;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.GridBagLayout;
+import java.awt.Font;
+import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 
+import javax.swing.BoxLayout;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JTextArea;
+import javax.swing.JSplitPane;
+import javax.swing.JTextField;
+import javax.swing.UIManager;
 
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamImageTransformer;
@@ -38,23 +40,8 @@ import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.multi.GenericMultipleBarcodeReader;
 
-import net.sourceforge.tess4j.ITesseract;
-import net.sourceforge.tess4j.Tesseract;
-
-import javax.swing.GroupLayout;
-import javax.swing.GroupLayout.Alignment;
-import javax.swing.JSplitPane;
-import javax.imageio.ImageIO;
-import javax.swing.BoxLayout;
-import javax.swing.JLabel;
-import java.awt.Color;
-import java.awt.BorderLayout;
-import java.awt.Font;
-import java.awt.Graphics2D;
-
-import javax.swing.JTextField;
-import java.awt.Component;
-import javax.swing.UIManager;
+import sun.audio.AudioPlayer;
+import sun.audio.AudioStream;
 
 
 public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer {
@@ -68,10 +55,16 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	private JTextField scanLot;
 	private JTextField scanRgt;
 	private JTextField scanDate;
+	private JLabel statusLabel;
 	
-	private String prevRef, prevLot, prevRgt;
 	long prevScanTime;
 	ScanResultsWorkflow workflow = null;
+	
+	enum Beep {
+		SUCCESSS,
+		INFO,
+		FAIL
+	}
 	
 
 	public WebcamScanner() {
@@ -105,9 +98,10 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		textPanel.add(scanningPanel);
 		scanningPanel.setLayout(new BoxLayout(scanningPanel, BoxLayout.Y_AXIS));
 		
-		JLabel statusLabel = new JLabel("[status here]");
+		statusLabel = new JLabel("[status here]");
 		statusLabel.setFont(new Font("Lucida Grande", Font.PLAIN, 20));
 		scanningPanel.add(statusLabel);
+		statusLabel.setText("Initialising...");
 		
 		JPanel scanBox = new JPanel();
 		scanningPanel.add(scanBox);
@@ -184,6 +178,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			Result [] results = {};
 			BufferedImage image = null, mirrorImage = null;
 
+			statusLabel.setText("Scanning...");
 			if (webcam != null && webcam.isOpen()) {
 
 				if ((mirrorImage = webcam.getImage()) == null) {
@@ -222,17 +217,36 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				destination[pointer].setText("");
 			}
 			scanDate.setText("");
+			scanDate.setBackground(UIManager.getColor("TextArea.background"));
 			List<String> data = new ArrayList<String>(resultMap.values());
-			workflow = new ScanResultsWorkflow(data);
-			if (workflow.isValid()) {
-				scanDate.setText("Processing...");
-				if (workflow.scanExpiryDate(image)) {
-					scanDate.setText(workflow.getExpiryDate());
-					
+			try { // Globally catch IO exceptions (communication error)
+				statusLabel.setText("Kit lookup...");
+				workflow = new ScanResultsWorkflow(data);
+				if (workflow.isValidBarcodes()) {
+					beep(Beep.INFO);
+					statusLabel.setText("Processing...");
+					if (workflow.scanExpiryDate(image)) {
+						scanDate.setText(workflow.getExpiryDateString());
+						if (workflow.valiDate()) {
+							workflow.save();
+						}
+						else {
+							scanDate.setBackground(Color.ORANGE);
+						}
+					}
+					else {
+						scanDate.setText("");
+					}
+					if (workflow.isCompleted()) {
+						beep(Beep.SUCCESSS);
+					}
+					else {
+						beep(Beep.FAIL);
+					}
 				}
-				else {
-					scanDate.setText("");
-				}
+			}
+			catch (IOException e) {
+				JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
 			}
 		} while (true);
 	}
@@ -257,5 +271,27 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
         g.drawImage(image, 0, 0, null);
         g.dispose();
         return newImage;
+	}
+	
+	void beep(Beep beep) {
+		InputStream in;
+		try {
+			if (beep == Beep.SUCCESSS) {
+				in = WebcamScanner.class.getResourceAsStream("resources/beep1.wav");
+			}
+			else if (beep == Beep.INFO) {
+				in = WebcamScanner.class.getResourceAsStream("resources/beep2.wav");
+			}
+			else if (beep == Beep.FAIL) {
+				in = WebcamScanner.class.getResourceAsStream("resources/buzzer.wav");
+			}
+			else {
+				return;
+			}
+			AudioStream as = new AudioStream(in);
+			AudioPlayer.player.start(as);
+		} catch (Exception e) { // Swallow all exceptions, beep is not important
+			e.printStackTrace();
+		}
 	}
 }

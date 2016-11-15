@@ -10,7 +10,6 @@ import javax.imageio.ImageIO;
 import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
-import no.uio.sequencing.reagent_scanning.ScanResultsWorkflow;
 
 public class DummyTest {
 
@@ -20,7 +19,7 @@ public class DummyTest {
 		arx.add("1202012");
 		arx.add("1202012");
 		System.out.println(new File( "." ).getCanonicalPath());
-		ScanResultsWorkflow srss = new ScanResultsWorkflow(arx);
+		//ScanResultsWorkflow srss = new ScanResultsWorkflow(arx);
 		
 		File fooFile = new File("resources/test/test_image.png");
 		BufferedImage foo = ImageIO.read(fooFile);

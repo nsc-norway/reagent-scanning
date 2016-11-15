@@ -1,6 +1,11 @@
 package no.uio.sequencing.reagent_scanning;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -15,11 +20,14 @@ public class ScanResultsWorkflow {
 
 	public final KitType kit;
 	public final List<String> barcodes;
-	private String expiryDate;
+	private Date expiryDate;
+	private boolean completed = false;
 	private final static ITesseract tess = new Tesseract();
-	private final Pattern datePattern = Pattern.compile("[^/\\d](\\d{4}/\\d{2}/\\d{2})[^/\\d]");
+	// Here goes another millennium bug
+	private final Pattern datePattern = Pattern.compile("\\b(20[1-9]\\d/[01]\\d/[0123]\\d)\\b");
+	private final SimpleDateFormat dt1 = new SimpleDateFormat("yyyyy/mm/dd");
 	
-	public ScanResultsWorkflow(List<String> barcodes) {
+	public ScanResultsWorkflow(List<String> barcodes) throws IOException {
 		this.barcodes = barcodes;
 		tess.setPageSegMode(6);
 		tess.setTessVariable("load_system_dawg", "0");
@@ -37,7 +45,7 @@ public class ScanResultsWorkflow {
 		return new KitType();
 	}
 	
-	public boolean isValid() {
+	public boolean isValidBarcodes() {
 		if (kit == null || barcodes == null) return false;
 		if (kit.withUniqueId) return barcodes.size() == 3;
 		else return barcodes.size() == 2;
@@ -46,21 +54,47 @@ public class ScanResultsWorkflow {
 	public boolean scanExpiryDate(BufferedImage image) {
 		try {
 			String text = tess.doOCR(image);
+
+			JOptionPane.showMessageDialog(null, text);
 			Matcher m = datePattern.matcher(text);
 			if (m.find()) {
-				this.expiryDate = m.group(1);
+				setExpiryDate(m.group(1));
 				return true;
 			}
 			else {
 				return false;
 			}
-		} catch (TesseractException e) {
+		} catch (TesseractException | ParseException e) {
 			return false;
 		}
 	}
 	
-	public String getExpiryDate() {
+	public void setExpiryDate(String dateString) throws ParseException {
+		this.expiryDate = dt1.parse(dateString);
+	}
+	
+	public boolean valiDate() {
+		Calendar yesterday = Calendar.getInstance();
+		yesterday.add(Calendar.DATE, -1);
+		Calendar twoYearsInFuture = Calendar.getInstance();
+		twoYearsInFuture.add(Calendar.YEAR, 2);
+		return (expiryDate.after(yesterday.getTime()) && expiryDate.before(twoYearsInFuture.getTime()));
+	}
+
+	public Date getExpiryDate() {
 		return expiryDate;
+	}
+
+	public String getExpiryDateString() {
+		return dt1.format(expiryDate);
+	}
+
+	public boolean isCompleted() {
+		return completed;
+	}
+
+	public void save() throws IOException {
+		
 	}
 	
 }

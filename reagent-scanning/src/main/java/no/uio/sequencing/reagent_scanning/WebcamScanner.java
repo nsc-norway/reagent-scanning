@@ -299,6 +299,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 					errorTextArea.setText("Unable to find the expiry date.");
 					errorTextArea.setBackground(Color.PINK);
 					lastErrorTime = now;
+					beep(Beep.FAIL);
 				}
 			}
 		} while (true);
@@ -339,7 +340,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				in = WebcamScanner.class.getResourceAsStream("resources/beep2.wav");
 			}
 			else if (beep == Beep.FAIL) {
-				in = WebcamScanner.class.getResourceAsStream("resources/buzzer.wav");
+				in = WebcamScanner.class.getResourceAsStream("resources/beep3.wav");
 			}
 			else {
 				return;

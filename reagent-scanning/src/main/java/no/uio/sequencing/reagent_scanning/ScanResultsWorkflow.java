@@ -79,8 +79,6 @@ public class ScanResultsWorkflow {
 	public void scanExpiryDate(BufferedImage image) throws DateParsingException {
 		try {
 			String text = tess.doOCR(image);
-
-			JOptionPane.showMessageDialog(null, text);
 			Matcher m = datePattern.matcher(text);
 			if (m.find()) {
 				setExpiryDate(m.group(1));

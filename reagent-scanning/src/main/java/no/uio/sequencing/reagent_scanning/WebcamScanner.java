@@ -6,6 +6,8 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -29,7 +31,9 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
+import javax.swing.border.BevelBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.SoftBevelBorder;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
@@ -55,8 +59,6 @@ import com.google.zxing.multi.GenericMultipleBarcodeReader;
 
 import sun.audio.AudioPlayer;
 import sun.audio.AudioStream;
-import javax.swing.border.SoftBevelBorder;
-import javax.swing.border.BevelBorder;
 
 
 public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer {
@@ -125,8 +127,10 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		getContentPane().add(panel, BorderLayout.NORTH);
 		panel.setLayout(new BorderLayout(0, 0));
 		
-		JPanel webcamPanel = new WebcamPanel(webcam);
-		//JPanel webcamPanel = new JPanel();
+		JPanel webcamPanel = new JPanel();
+		if (webcam != null) {
+			webcamPanel = new WebcamPanel(webcam);
+		}
 		webcamPanel.setBorder(new SoftBevelBorder(BevelBorder.LOWERED, null, null, null, null));
 		webcamPanel.setPreferredSize(res);
 		panel.add(webcamPanel, BorderLayout.CENTER);
@@ -152,6 +156,15 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		statusLabel.setFont(new Font("Lucida Grande", Font.PLAIN, 20));
 		
 		scanEnableCheckbox = new JCheckBox("scan");
+		scanEnableCheckbox.addItemListener(new ItemListener() {
+			public void itemStateChanged(ItemEvent e) {
+				if (e.getStateChange() == ItemEvent.SELECTED) {
+					Thread thread = new Thread(WebcamScanner.this);
+					thread.setDaemon(true);
+					thread.start();
+				}
+			}
+		});
 		scanEnableCheckbox.setHorizontalAlignment(SwingConstants.TRAILING);
 		scanEnableCheckbox.setSelected(true);
 		topRowPanel.add(scanEnableCheckbox);
@@ -219,10 +232,11 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		errorTextArea.setEditable(false);
 		errorTextArea.setText("");
 		errorTextArea.setBackground(Color.PINK);
-		if (webcam != null) {
-			webcamPanel = new WebcamPanel(webcam);
-		}
-
+		
+		JPanel optionsPanel = new JPanel();
+		padding.add(optionsPanel, BorderLayout.SOUTH);
+		optionsPanel.setLayout(new BorderLayout(0, 0));
+		
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		pack();
 		// Full screen?

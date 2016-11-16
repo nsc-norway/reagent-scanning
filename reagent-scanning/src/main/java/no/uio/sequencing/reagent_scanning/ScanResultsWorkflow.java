@@ -76,7 +76,6 @@ public class ScanResultsWorkflow {
 		else if (!kit.requestLotName && barcodes.size() != 2) {
 			throw new InvalidBarcodeSetException("Need two barcodes for kit " + kit.ref + ".");
 		}
-
 	}
 	
 	public void scanExpiryDate(BufferedImage image) throws DateParsingException {
@@ -135,7 +134,8 @@ public class ScanResultsWorkflow {
 		lotUniqueId = lot.uid;
 		lot.known = true;
 		lot.ref = ref;
-		apiBase.path("lots").path(ref).path(lot.lotnumber).request(MediaType.APPLICATION_JSON_TYPE)
+		lot = apiBase.path("lots").path(ref).path(lot.lotnumber)
+				.request(MediaType.APPLICATION_JSON_TYPE)
 				.post(Entity.json(lot), Lot.class);
 		completed = true;
 	}

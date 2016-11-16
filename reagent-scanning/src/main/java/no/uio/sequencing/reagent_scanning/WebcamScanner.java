@@ -55,15 +55,18 @@ import com.google.zxing.multi.GenericMultipleBarcodeReader;
 
 import sun.audio.AudioPlayer;
 import sun.audio.AudioStream;
+import javax.swing.border.SoftBevelBorder;
+import javax.swing.border.BevelBorder;
 
 
 public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer {
 
 	private static final long serialVersionUID = 6441489127408381878L;
 
-	private static final long SCAN_PAUSE_TIME = 1000;
+	private static final long SCAN_PAUSE_TIME = 5000;
 
 	private static final long ERROR_DISPLAY_TIME = 5000;
+	private final static boolean ENABLE_MIRROR = false;
 
 	private Webcam webcam = null;
 	private JTextField scanRef;
@@ -122,8 +125,9 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		getContentPane().add(panel, BorderLayout.NORTH);
 		panel.setLayout(new BorderLayout(0, 0));
 		
-		//JPanel webcamPanel = new WebcamPanel(webcam);
-		JPanel webcamPanel = new JPanel();
+		JPanel webcamPanel = new WebcamPanel(webcam);
+		//JPanel webcamPanel = new JPanel();
+		webcamPanel.setBorder(new SoftBevelBorder(BevelBorder.LOWERED, null, null, null, null));
 		webcamPanel.setPreferredSize(res);
 		panel.add(webcamPanel, BorderLayout.CENTER);
 		
@@ -310,7 +314,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			scanDate.setText("");
 			scanDate.setBackground(UIManager.getColor("TextArea.background"));
 
-			if (now - lastErrorTime > ERROR_DISPLAY_TIME && results.length >= 1) {
+			if (now - lastErrorTime > ERROR_DISPLAY_TIME && results.length > 1) {
 				errorPanel.setVisible(false);
 				//errorTextArea.setText("");
 				//errorTextArea.setBackground(UIManager.getColor("Panel.background"));
@@ -319,8 +323,8 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			if (data.size() >= 2) {
 				processResult(image, data);
 			}
-			
-		} 
+		}
+		// End of scan loop
 		topRowPanel.setBackground(new Color(230, 230, 250));
 		statusLabel.setText("Ready");
 	}
@@ -370,7 +374,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			// Catches communication errors and unexpected HTTP response codes 
 			beep(Beep.FAIL);
 			JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
-		} catch (InvalidBarcodeSetException e) {
+		} catch (InvalidBarcodeSetException e) { // Ignored, should try again
 		} catch (KitNotFoundException e) {
 			kitNameValue.setText("");
 			showError(e.getMessage());
@@ -407,18 +411,23 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 
 	@Override
 	public BufferedImage transform(BufferedImage image) {
-		// Mirror image
-		AffineTransform at = new AffineTransform();
-        at.concatenate(AffineTransform.getScaleInstance(-1, 1));
-        at.concatenate(AffineTransform.getTranslateInstance(-image.getWidth(), 0));
-        BufferedImage newImage = new BufferedImage(
-                image.getWidth(), image.getHeight(),
-                BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = newImage.createGraphics();
-        g.transform(at);
-        g.drawImage(image, 0, 0, null);
-        g.dispose();
-        return newImage;
+		if (ENABLE_MIRROR) {
+			// Mirror image
+			AffineTransform at = new AffineTransform();
+	        at.concatenate(AffineTransform.getScaleInstance(-1, 1));
+	        at.concatenate(AffineTransform.getTranslateInstance(-image.getWidth(), 0));
+	        BufferedImage newImage = new BufferedImage(
+	                image.getWidth(), image.getHeight(),
+	                BufferedImage.TYPE_INT_ARGB);
+	        Graphics2D g = newImage.createGraphics();
+	        g.transform(at);
+	        g.drawImage(image, 0, 0, null);
+	        g.dispose();
+	        return newImage;
+		}
+		else {
+			return image;
+		}
 	}
 	
 	void beep(Beep beep) {

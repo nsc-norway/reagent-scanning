@@ -165,8 +165,9 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				}
 			}
 		});
-		scanEnableCheckbox.setHorizontalAlignment(SwingConstants.TRAILING);
+		// Note: This triggers the event! (Intentionally)
 		scanEnableCheckbox.setSelected(true);
+		scanEnableCheckbox.setHorizontalAlignment(SwingConstants.TRAILING);
 		topRowPanel.add(scanEnableCheckbox);
 		
 		JPanel scanBox = new JPanel();
@@ -245,10 +246,6 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 
 		Client client = ClientBuilder.newClient();		
 		apiBaseTarget = client.target(apiUrl);
-		
-		Thread thread = new Thread(this);
-		thread.setDaemon(true);
-		thread.start();
 	}
 
 	public void run() {

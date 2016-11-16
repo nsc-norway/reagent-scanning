@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.swing.JOptionPane;
 import javax.ws.rs.NotFoundException;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 
@@ -28,13 +28,14 @@ public class ScanResultsWorkflow {
 	private boolean completed = false;
 	long negCache = 0;
 	private final WebTarget apiBase;
+	public String lotUniqueId;
 	
 	
 	private final static ITesseract tess = new Tesseract();
 	// Here comes another millennium bug
 	private final static Pattern datePattern = Pattern.compile("\\b(20[1-9]\\d/[01]\\d/[0123]\\d)\\b");
-	private final static SimpleDateFormat dt1 = new SimpleDateFormat("yyyyy/mm/dd");
-	private static final long CACHE_TIME = 5000;
+	private final static SimpleDateFormat dt1 = new SimpleDateFormat("yyyy/MM/dd");
+	private static final long CACHE_TIME = 60000;
 	
 	static {
 		// Tesseract initialisation
@@ -54,12 +55,14 @@ public class ScanResultsWorkflow {
 		if (System.currentTimeMillis() - negCache < CACHE_TIME)
 			throw new KitNotFoundException("Kit " + ref + " not found.");
 
-		try {
-			kit = apiBase.path("kits").path(ref).request(MediaType.APPLICATION_JSON_TYPE).get(Kit.class);
-		}
-		catch (NotFoundException e) {
-			negCache = System.currentTimeMillis();
-			throw new KitNotFoundException("Kit " + ref + " not found.");
+		if (kit == null) {
+			try {
+				kit = apiBase.path("kits").path(ref).request(MediaType.APPLICATION_JSON_TYPE).get(Kit.class);
+			}
+			catch (NotFoundException e) {
+				negCache = System.currentTimeMillis();
+				throw new KitNotFoundException("Kit " + ref + " not found.");
+			}
 		}
 	}
 	
@@ -70,7 +73,7 @@ public class ScanResultsWorkflow {
 		if (kit.requestLotName && barcodes.size() != 3) {
 			throw new InvalidBarcodeSetException("Need three barcodes for kit " + kit.ref + ".");
 		}
-		else if (!kit.requestLotName && barcodes.size() != 3) {
+		else if (!kit.requestLotName && barcodes.size() != 2) {
 			throw new InvalidBarcodeSetException("Need two barcodes for kit " + kit.ref + ".");
 		}
 
@@ -116,7 +119,25 @@ public class ScanResultsWorkflow {
 	}
 
 	public void save() throws IOException {
-		
+		Lot lot;
+		if (kit.requestLotName) {
+			lot = new Lot();
+			lot.lotnumber = barcodes.get(1);
+			lot.uid = barcodes.get(2);
+		}
+		else {
+			// Get unique-ID from server if lot is not known
+			lot = apiBase.path("lots").path(ref).path(barcodes.get(1))
+					.request(MediaType.APPLICATION_JSON_TYPE)
+					.get(Lot.class);
+		}
+		lot.expiryDate = getExpiryDateString();
+		lotUniqueId = lot.uid;
+		lot.known = true;
+		lot.ref = ref;
+		apiBase.path("lots").path(ref).path(lot.lotnumber).request(MediaType.APPLICATION_JSON_TYPE)
+				.post(Entity.json(lot), Lot.class);
+		completed = true;
 	}
 	
 }

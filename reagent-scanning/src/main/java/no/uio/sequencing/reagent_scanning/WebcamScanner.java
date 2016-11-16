@@ -10,28 +10,38 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import javax.swing.BoxLayout;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JSplitPane;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.UIManager;
+import javax.swing.border.EmptyBorder;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.commons.io.IOUtils;
+
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamImageTransformer;
 import com.github.sarxos.webcam.WebcamPanel;
-import com.github.sarxos.webcam.WebcamResolution;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.DecodeHintType;
@@ -45,17 +55,13 @@ import com.google.zxing.multi.GenericMultipleBarcodeReader;
 
 import sun.audio.AudioPlayer;
 import sun.audio.AudioStream;
-import java.awt.FlowLayout;
-import javax.swing.JTextArea;
-import java.awt.Component;
-import javax.swing.Box;
 
 
 public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer {
 
 	private static final long serialVersionUID = 6441489127408381878L;
 
-	private static final long EQUAL_SCAN_DEBOUNCE = 500;
+	private static final long SCAN_PAUSE_TIME = 1000;
 
 	private static final long ERROR_DISPLAY_TIME = 5000;
 
@@ -64,16 +70,25 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	private JTextField scanLot;
 	private JTextField scanRgt;
 	private JTextField scanDate;
-	private JPanel scanningPanel;
 	private JLabel statusLabel;
 	
 	long prevScanTime, lastErrorTime;
 	
 	ScanResultsWorkflow workflow = null;
 	
+	private Set<String> scanPauseSet;
+	
 	private WebTarget apiBaseTarget;
 
 	private JTextArea errorTextArea;
+
+	private JLabel kitNameValue;
+
+	private JPanel topRowPanel;
+
+	private JCheckBox scanEnableCheckbox;
+
+	private JPanel errorPanel;
 	
 	enum Beep {
 		SUCCESSS,
@@ -84,7 +99,10 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 
 	public WebcamScanner(String apiUrl) {
 		super();
-		setTitle("Scanner (moose) application");
+		
+		scanPauseSet = new HashSet<>();
+		
+		setTitle("Scanner application");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		final Dimension res = new Dimension(1280, 1024);
@@ -100,28 +118,52 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		}
 		getContentPane().setLayout(new BorderLayout(0, 0));
 		
-		JSplitPane splitPane = new JSplitPane();
-		splitPane.setResizeWeight(0.5);
+		JPanel panel = new JPanel();
+		getContentPane().add(panel, BorderLayout.NORTH);
+		panel.setLayout(new BorderLayout(0, 0));
+		
+		//JPanel webcamPanel = new WebcamPanel(webcam);
+		JPanel webcamPanel = new JPanel();
+		webcamPanel.setPreferredSize(res);
+		panel.add(webcamPanel, BorderLayout.CENTER);
 		
 		JPanel textPanel = new JPanel();
-		splitPane.setRightComponent(textPanel);
+		panel.add(textPanel, BorderLayout.EAST);
 		textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
 		
-		scanningPanel = new JPanel();
+		JPanel scanningPanel = new JPanel();
 		scanningPanel.setAlignmentY(0.0f);
-		scanningPanel.setBackground(new Color(230, 230, 250));
 		textPanel.add(scanningPanel);
 		scanningPanel.setLayout(new BoxLayout(scanningPanel, BoxLayout.Y_AXIS));
 		
-		statusLabel = new JLabel("[status here]");
+		topRowPanel = new JPanel();
+		topRowPanel.setBorder(new EmptyBorder(4, 4, 4, 4));
+		topRowPanel.setBackground(new Color(230, 230, 250));
+		scanningPanel.add(topRowPanel);
+		topRowPanel.setLayout(new GridLayout(0, 2, 0, 0));
+		
+		statusLabel = new JLabel("Initialising...");
+		topRowPanel.add(statusLabel);
+		statusLabel.setHorizontalAlignment(SwingConstants.LEFT);
 		statusLabel.setFont(new Font("Lucida Grande", Font.PLAIN, 20));
-		scanningPanel.add(statusLabel);
-		statusLabel.setText("Initialising...");
+		
+		scanEnableCheckbox = new JCheckBox("scan");
+		scanEnableCheckbox.setHorizontalAlignment(SwingConstants.TRAILING);
+		scanEnableCheckbox.setSelected(true);
+		topRowPanel.add(scanEnableCheckbox);
 		
 		JPanel scanBox = new JPanel();
+		scanBox.setBorder(new EmptyBorder(4, 4, 4, 4));
 		scanningPanel.add(scanBox);
 		scanBox.setBackground(UIManager.getColor("Panel.background"));
 		scanBox.setLayout(new GridLayout(0, 2, 0, 0));
+		
+		JLabel lblKitName = new JLabel("KIT");
+		scanBox.add(lblKitName);
+		
+		kitNameValue = new JLabel("");
+		kitNameValue.setFont(new Font("Lucida Grande", Font.PLAIN, 15));
+		scanBox.add(kitNameValue);
 		
 		JLabel lblRefBox = new JLabel("REF");
 		scanBox.add(lblRefBox);
@@ -151,30 +193,36 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		scanBox.add(scanDate);
 		scanDate.setColumns(10);
 		
-		JLabel lblNewLabel = new JLabel("TES TEST TEST TESTE STES TEST TEST TEST");
-		lblNewLabel.setBackground(Color.PINK);
+		JLabel lblNewLabel = new JLabel(" ");
 		scanningPanel.add(lblNewLabel);
 		
+		JPanel padding = new JPanel();
+		padding.setBorder(new EmptyBorder(10, 10, 10, 10));
+		scanningPanel.add(padding);
+		padding.setLayout(new BorderLayout(0, 0));
+		
+		errorPanel = new JPanel();
+		errorPanel.setBackground(Color.PINK);
+		errorPanel.setVisible(false);
+		errorPanel.setBorder(new EmptyBorder(4, 4, 4, 4));
+		padding.add(errorPanel, BorderLayout.NORTH);
+		errorPanel.setLayout(new BoxLayout(errorPanel, BoxLayout.X_AXIS));
+		
 		errorTextArea = new JTextArea();
+		errorPanel.add(errorTextArea);
+		errorTextArea.setLineWrap(true);
+		errorTextArea.setWrapStyleWord(true);
 		errorTextArea.setEditable(false);
 		errorTextArea.setText("");
-		errorTextArea.setBackground(UIManager.getColor("Panel.background"));
-		scanningPanel.add(errorTextArea);
-		
-		JPanel padding = new JPanel();
-		scanningPanel.add(padding);
-		getContentPane().add(splitPane);
-		
-		JPanel webcamPanel = new JPanel();
+		errorTextArea.setBackground(Color.PINK);
 		if (webcam != null) {
 			webcamPanel = new WebcamPanel(webcam);
 		}
-		webcamPanel.setPreferredSize(WebcamResolution.VGA.getSize());
-		splitPane.setLeftComponent(webcamPanel);
 
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		pack();
-		
+		// Full screen?
+		//setExtendedState(JFrame.MAXIMIZED_BOTH); 
 		setVisible(true);
 
 		Client client = ClientBuilder.newClient();		
@@ -196,8 +244,10 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		hints.put(DecodeHintType.TRY_HARDER, true);
 		mfReader.setHints(hints);
 		GenericMultipleBarcodeReader reader = new GenericMultipleBarcodeReader(mfReader);
-		
-		do {
+
+		statusLabel.setText("Scanning...");
+		topRowPanel.setBackground(new Color(230, 230, 250));
+		while (scanEnableCheckbox.isSelected()) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
@@ -207,8 +257,6 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			Result [] results = {};
 			BufferedImage image = null, mirrorImage = null;
 
-			statusLabel.setText("Scanning...");
-			scanningPanel.setBackground(new Color(230, 230, 250));
 			if (webcam != null && webcam.isOpen()) {
 
 				if ((mirrorImage = webcam.getImage()) == null) {
@@ -232,11 +280,21 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				}
 			}
 
-			final JTextField[] destination = {scanRef, scanLot, scanRgt};
+			long now = System.currentTimeMillis();
+			// Create a list "data" sorted by y-coord
 			Map<Float,String> resultMap = new TreeMap<>();
 			for (Result r : results) {
 				resultMap.put(r.getResultPoints()[0].getY(), r.getText());
 			}
+			List<String> data = new ArrayList<String>(resultMap.values());
+			if (!scanPauseSet.isEmpty() && scanPauseSet.containsAll(data) 
+					&& (now - prevScanTime < SCAN_PAUSE_TIME || data.isEmpty())) {
+				continue;
+			}
+			scanPauseSet.clear();
+			
+			final JTextField[] destination = {scanRef, scanLot, scanRgt};
+
 			int pointer = 0;
 			for (String text : resultMap.values()) {
 				if (pointer < destination.length) {
@@ -246,63 +304,95 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			for (; pointer < destination.length; ++pointer) {
 				destination[pointer].setText("");
 			}
+			if (data.isEmpty()) {
+				kitNameValue.setText("");
+			}
 			scanDate.setText("");
 			scanDate.setBackground(UIManager.getColor("TextArea.background"));
 
-			long now = System.currentTimeMillis();
-			if (now - lastErrorTime > ERROR_DISPLAY_TIME && results.length > 1) {
-				errorTextArea.setText("");
-				errorTextArea.setBackground(UIManager.getColor("Panel.background"));
+			if (now - lastErrorTime > ERROR_DISPLAY_TIME && results.length >= 1) {
+				errorPanel.setVisible(false);
+				//errorTextArea.setText("");
+				//errorTextArea.setBackground(UIManager.getColor("Panel.background"));
 			}
 			
-			List<String> data = new ArrayList<String>(resultMap.values());
 			if (data.size() >= 2) {
-				try { // Globally catch IO exceptions (communication error)
-					if (workflow == null || !workflow.ref.equals(data.get(0))) {
-						statusLabel.setText("Kit lookup...");
-						workflow = new ScanResultsWorkflow(apiBaseTarget, data.get(0));
-					}
-					workflow.loadKit();
-					workflow.setBarcodes(data);
-					
-					scanningPanel.setBackground(new Color(250, 250, 230));
-					beep(Beep.INFO);
-					statusLabel.setText("Reading date...");
-					workflow.scanExpiryDate(image);
-					scanDate.setText(workflow.getExpiryDateString());
-					if (workflow.valiDate()) {
-						statusLabel.setText("Saving...");
-						workflow.save();
-						scanningPanel.setBackground(new Color(230, 250, 230));
-						statusLabel.setText("✓ Lot saved");
-					}
-					else {
-						scanDate.setBackground(Color.ORANGE);
-						errorTextArea.setText("Unable to detect the date.");
-					}
-					if (workflow.isCompleted()) {
-						beep(Beep.SUCCESSS);
-					}
-					else {
-						//errorTextArea.setText("General failure");
-						//errorTextArea.setBackground(Color.PINK);
-					}
-				}
-				catch (IOException e) {
-					JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
-				} catch (InvalidBarcodeSetException e) {
-				} catch (KitNotFoundException e) {
-					errorTextArea.setText(e.getMessage());
-					errorTextArea.setBackground(Color.PINK);
-					lastErrorTime = now;
-				} catch (DateParsingException e) {
-					errorTextArea.setText("Unable to find the expiry date.");
-					errorTextArea.setBackground(Color.PINK);
-					lastErrorTime = now;
-					beep(Beep.FAIL);
-				}
+				processResult(image, data);
 			}
-		} while (true);
+			
+		} 
+		topRowPanel.setBackground(new Color(230, 230, 250));
+		statusLabel.setText("Ready");
+	}
+
+	private void processResult(BufferedImage image, List<String> data) {
+		try { // Globally catch IO exceptions (communication error)
+			if (workflow == null || !workflow.ref.equals(data.get(0))) {
+				statusLabel.setText("Kit lookup...");
+				workflow = new ScanResultsWorkflow(apiBaseTarget, data.get(0));
+			}
+			workflow.loadKit();
+			kitNameValue.setText(workflow.kit.name);
+			workflow.setBarcodes(data);
+			
+			topRowPanel.setBackground(new Color(250, 250, 230));
+			beep(Beep.INFO);
+			statusLabel.setText("Reading date...");
+			workflow.scanExpiryDate(image);
+			scanDate.setText(workflow.getExpiryDateString());
+			if (workflow.valiDate()) {
+				statusLabel.setText("Saving...");
+				try {
+					workflow.save();
+					scanRgt.setText(workflow.lotUniqueId);
+					topRowPanel.setBackground(new Color(230, 250, 230));
+					statusLabel.setText("✓ Lot saved");
+					beep(Beep.SUCCESSS);
+				} catch (BadRequestException e) {
+					String message = "UNKNOWN ERROR!";
+					if (e.getResponse().getEntity() instanceof InputStream) {
+						StringWriter writer = new StringWriter();
+						IOUtils.copy((InputStream)e.getResponse().getEntity(), writer, "UTF-8");
+						message = writer.toString();
+					}
+					showError(message);
+				}
+				// This enables a pause between scan attempts after completion
+				prevScanTime = System.currentTimeMillis();
+				scanPauseSet = new HashSet<String>(data);
+			}
+			else {
+				scanDate.setBackground(Color.ORANGE);
+				showError("Unlikely date: in the past or too far in the future.");
+			}
+		}
+		catch (IOException | ProcessingException | ClientErrorException e) {
+			// Catches communication errors and unexpected HTTP response codes 
+			beep(Beep.FAIL);
+			JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
+		} catch (InvalidBarcodeSetException e) {
+		} catch (KitNotFoundException e) {
+			kitNameValue.setText("");
+			showError(e.getMessage());
+			// This enables a pause between scan attempts after kit not found, for these exact data
+			prevScanTime = System.currentTimeMillis();
+			scanPauseSet = new HashSet<String>(data);
+		} catch (DateParsingException e) {
+			String message = "Unable to find the expiry date.";
+			showError(message);
+		}
+		if (!workflow.isCompleted()) {
+			statusLabel.setText("Scanning...");
+			topRowPanel.setBackground(new Color(230, 230, 250));
+		}
+	}
+
+	private void showError(String message) {
+		beep(Beep.FAIL);
+		errorPanel.setVisible(true);
+		errorTextArea.setText(message);
+		//errorTextArea.setBackground(Color.PINK);
+		lastErrorTime = System.currentTimeMillis();
 	}
 	
 	public static void main(String[] args) {
@@ -310,7 +400,8 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			new WebcamScanner(args[0]);
 		}
 		else {
-			JOptionPane.showMessageDialog(null, "Error: WebcamScanner must be called with the base API URL as a command line argument.");
+			new WebcamScanner("http://localhost:5001/");
+			//JOptionPane.showMessageDialog(null, "Error: WebcamScanner must be called with the base API URL as a command line argument.");
 		}
 	}
 
@@ -334,13 +425,13 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		InputStream in;
 		try {
 			if (beep == Beep.SUCCESSS) {
-				in = WebcamScanner.class.getResourceAsStream("resources/beep1.wav");
+				in = WebcamScanner.class.getResourceAsStream("resources/beep3.wav");
 			}
 			else if (beep == Beep.INFO) {
 				in = WebcamScanner.class.getResourceAsStream("resources/beep2.wav");
 			}
 			else if (beep == Beep.FAIL) {
-				in = WebcamScanner.class.getResourceAsStream("resources/beep3.wav");
+				in = WebcamScanner.class.getResourceAsStream("resources/beep1.wav");
 			}
 			else {
 				return;

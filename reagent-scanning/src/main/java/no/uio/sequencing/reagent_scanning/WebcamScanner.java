@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
-import java.awt.GridLayout;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.geom.AffineTransform;
@@ -13,6 +12,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -66,7 +66,6 @@ import javax.swing.JButton;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import javax.swing.Box;
-import java.awt.FlowLayout;
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
 import javax.swing.LayoutStyle.ComponentPlacement;
@@ -260,6 +259,11 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		scanningPanel.add(buttonPanel);
 		
 		btnAdd = new JButton("Add new");
+		btnAdd.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				manualAddLot();
+			}
+		});
 		btnAdd.setEnabled(false);
 		buttonPanel.add(btnAdd);
 		
@@ -504,7 +508,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		//errorTextArea.setBackground(Color.PINK);
 		lastErrorTime = System.currentTimeMillis();
 	}
-	
+
 	private void editLot() {
 		if (workflow != null && workflow.isCompleted()) {
 			workflow.lot.uniqueId = scanRgt.getText();
@@ -526,6 +530,52 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			} 
 		}
 	}
+	
+	private void manualAddLot() {
+		boolean saveOk = false;
+		try {
+			topRowPanel.setBackground(new Color(250, 250, 230));
+			statusLabel.setText("Saving...");
+			
+			List<String> data = new ArrayList<>();
+			data.add(scanRef.getText());
+			data.add(scanLot.getText());
+			data.add(scanRgt.getText());
+			
+			if (workflow == null || !workflow.ref.equals(data.get(0))) {
+				statusLabel.setText("Kit lookup...");
+				workflow = new ScanResultsWorkflow(apiBaseTarget, data.get(0));
+			}
+			workflow.loadKit();
+			kitNameValue.setText(workflow.kit.name);
+			workflow.lotNumber = scanLot.getText();
+			workflow.uniqueId = scanRgt.getText();
+			workflow.setExpiryDate(scanDate.getText());
+			workflow.save();
+			scanRgt.setText(workflow.lot.uniqueId);
+			topRowPanel.setBackground(new Color(230, 250, 230));
+			statusLabel.setText("✓ Lot saved");
+			errorPanel.setVisible(false);
+			beep(Beep.SUCCESSS);
+			scanRef.setText("");
+			scanLot.setText("");
+			scanRgt.setText("");
+			scanDate.setText("");
+			saveOk = true;
+		}
+		catch (WebApplicationException e) {
+			String message = readHttpErrorMessage(e);
+			showError(message);
+		} catch (KitNotFoundException | ParseException e) {
+			showError(e.getMessage());
+		} catch (IOException | ProcessingException e) {
+			showError("Input/Output error: " + e.getMessage());
+		}
+		if (!saveOk) {
+			statusLabel.setText("Save error");
+		}
+	}
+		
 	
 	public static void main(String[] args) {
 		if (args.length >= 1) {

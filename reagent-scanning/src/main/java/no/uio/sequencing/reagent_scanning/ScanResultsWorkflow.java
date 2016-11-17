@@ -22,9 +22,9 @@ import net.sourceforge.tess4j.TesseractException;
 public class ScanResultsWorkflow {
 
 	public final String ref;
+	public String lotNumber, uniqueId;
 	public Kit kit;
 	public Lot lot;
-	public List<String> barcodes;
 	private Date expiryDate;
 	private boolean completed = false;
 	long negCache = 0;
@@ -67,14 +67,24 @@ public class ScanResultsWorkflow {
 	}
 	
 	public void setBarcodes(List<String> barcodes) throws InvalidBarcodeSetException, IOException {
-		this.barcodes = barcodes;
 		this.completed = false;
 		
-		if (kit.requestLotName && barcodes.size() != 3) {
-			throw new InvalidBarcodeSetException("Need three barcodes for kit " + kit.ref + ".");
+		if (kit.requestLotName) {
+			if (barcodes.size() == 3) {
+				lotNumber = barcodes.get(1);
+				uniqueId = barcodes.get(2);
+			}
+			else {
+				throw new InvalidBarcodeSetException("Need three barcodes for kit " + kit.ref + ".");
+			}
 		}
-		else if (!kit.requestLotName && barcodes.size() != 2) {
-			throw new InvalidBarcodeSetException("Need two barcodes for kit " + kit.ref + ".");
+		else {
+			if (barcodes.size() == 2) {
+				lotNumber = barcodes.get(1);
+			}
+			else {
+				throw new InvalidBarcodeSetException("Need two barcodes for kit " + kit.ref + ".");
+			}
 		}
 	}
 	
@@ -119,7 +129,7 @@ public class ScanResultsWorkflow {
 	
 	public boolean tryGetLotDate() {
 		try {
-			lot = apiBase.path("lots").path(ref).path(barcodes.get(1))
+			lot = apiBase.path("lots").path(ref).path(lotNumber)
 					.request(MediaType.APPLICATION_JSON_TYPE)
 					.get(Lot.class);
 			if (lot.expiryDate == null) {
@@ -136,12 +146,12 @@ public class ScanResultsWorkflow {
 	public void save() throws IOException {
 		if (kit.requestLotName) {
 			lot = new Lot();
-			lot.lotnumber = barcodes.get(1);
-			lot.uniqueId = barcodes.get(2);
+			lot.lotnumber = lotNumber;
+			lot.uniqueId = uniqueId;
 		}
 		else if (lot != null)  {
 			lot = new Lot();
-			lot.lotnumber = barcodes.get(1);
+			lot.lotnumber = lotNumber;
 		}
 		lot.expiryDate = getExpiryDateString().replace('/','-');
 		lot.known = true;

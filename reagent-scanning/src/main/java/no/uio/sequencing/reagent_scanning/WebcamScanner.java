@@ -69,6 +69,7 @@ import javax.swing.Box;
 import java.awt.FlowLayout;
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
+import javax.swing.LayoutStyle.ComponentPlacement;
 
 
 public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer {
@@ -213,21 +214,19 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				.addGroup(gl_scanBox.createSequentialGroup()
 					.addGap(6)
 					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
-						.addGroup(gl_scanBox.createSequentialGroup()
-							.addComponent(lblKitName, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE)
-							.addComponent(kitNameValue, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE))
-						.addGroup(gl_scanBox.createSequentialGroup()
-							.addComponent(lblRefBox, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE)
-							.addComponent(scanRef, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE))
-						.addGroup(gl_scanBox.createSequentialGroup()
-							.addComponent(lblLot, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE)
-							.addComponent(scanLot, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE))
-						.addGroup(gl_scanBox.createSequentialGroup()
-							.addComponent(lblRgt, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE)
-							.addComponent(scanRgt, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE))
-						.addGroup(gl_scanBox.createSequentialGroup()
-							.addComponent(lblDate, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE)
-							.addComponent(scanDate, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE))))
+						.addGroup(gl_scanBox.createParallelGroup(Alignment.TRAILING, false)
+							.addComponent(lblDate, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+							.addComponent(lblRgt, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+							.addComponent(lblLot, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+							.addComponent(lblRefBox, GroupLayout.DEFAULT_SIZE, 69, Short.MAX_VALUE))
+						.addComponent(lblKitName, GroupLayout.PREFERRED_SIZE, 46, GroupLayout.PREFERRED_SIZE))
+					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
+						.addComponent(kitNameValue, GroupLayout.PREFERRED_SIZE, 263, GroupLayout.PREFERRED_SIZE)
+						.addComponent(scanRgt, Alignment.TRAILING)
+						.addComponent(scanDate, Alignment.TRAILING)
+						.addComponent(scanLot, Alignment.TRAILING)
+						.addComponent(scanRef, GroupLayout.DEFAULT_SIZE, 263, Short.MAX_VALUE))
+					.addContainerGap())
 		);
 		gl_scanBox.setVerticalGroup(
 			gl_scanBox.createParallelGroup(Alignment.LEADING)
@@ -236,18 +235,23 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
 						.addComponent(lblKitName, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
 						.addComponent(kitNameValue, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE))
+					.addPreferredGap(ComponentPlacement.RELATED)
 					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
 						.addComponent(lblRefBox, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
 						.addComponent(scanRef, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+					.addPreferredGap(ComponentPlacement.RELATED)
 					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
 						.addComponent(lblLot, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
 						.addComponent(scanLot, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+					.addPreferredGap(ComponentPlacement.RELATED)
 					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
 						.addComponent(lblRgt, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
 						.addComponent(scanRgt, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+					.addPreferredGap(ComponentPlacement.RELATED)
 					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
 						.addComponent(lblDate, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
-						.addComponent(scanDate, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)))
+						.addComponent(scanDate, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+					.addContainerGap())
 		);
 		scanBox.setLayout(gl_scanBox);
 		

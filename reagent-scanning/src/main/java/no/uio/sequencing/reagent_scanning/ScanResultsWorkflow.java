@@ -137,13 +137,11 @@ public class ScanResultsWorkflow {
 		if (kit.requestLotName) {
 			lot = new Lot();
 			lot.lotnumber = barcodes.get(1);
-			lot.uid = barcodes.get(2);
+			lot.uniqueId = barcodes.get(2);
 		}
 		else if (lot != null)  {
-			// Get unique-ID from server if lot is not known
-			lot = apiBase.path("lots").path(ref).path(barcodes.get(1))
-					.request(MediaType.APPLICATION_JSON_TYPE)
-					.get(Lot.class);
+			lot = new Lot();
+			lot.lotnumber = barcodes.get(1);
 		}
 		lot.expiryDate = getExpiryDateString().replace('/','-');
 		lot.known = true;
@@ -152,6 +150,12 @@ public class ScanResultsWorkflow {
 				.request(MediaType.APPLICATION_JSON_TYPE)
 				.post(Entity.json(lot), Lot.class);
 		completed = true;
+	}
+
+	public void editLot() {
+		lot = apiBase.path("editlot").path(lot.limsId)
+			.request(MediaType.APPLICATION_JSON_TYPE)
+			.put(Entity.json(lot), Lot.class);
 	}
 	
 }

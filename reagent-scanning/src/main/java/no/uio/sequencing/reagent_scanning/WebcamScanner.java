@@ -61,6 +61,10 @@ import com.google.zxing.multi.GenericMultipleBarcodeReader;
 
 import sun.audio.AudioPlayer;
 import sun.audio.AudioStream;
+import java.awt.Component;
+import javax.swing.JButton;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
 
 
 public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer {
@@ -84,18 +88,16 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	ScanResultsWorkflow workflow = null;
 	
 	private Set<String> scanPauseSet;
-	
 	private WebTarget apiBaseTarget;
-
 	private JTextArea errorTextArea;
-
 	private JLabel kitNameValue;
-
 	private JPanel topRowPanel;
-
 	private JCheckBox scanEnableCheckbox;
-
 	private JPanel errorPanel;
+
+	private JButton btnAdd;
+
+	private JButton btnEdit;
 	
 	enum Beep {
 		SUCCESSS,
@@ -167,8 +169,6 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				}
 			}
 		});
-		// Note: This triggers the event! (Intentionally)
-		scanEnableCheckbox.setSelected(true);
 		scanEnableCheckbox.setHorizontalAlignment(SwingConstants.TRAILING);
 		topRowPanel.add(scanEnableCheckbox);
 		
@@ -189,6 +189,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		scanBox.add(lblRefBox);
 		
 		scanRef = new JTextField();
+		scanRef.setEditable(false);
 		scanBox.add(scanRef);
 		scanRef.setColumns(10);
 		
@@ -212,6 +213,23 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		scanDate = new JTextField();
 		scanBox.add(scanDate);
 		scanDate.setColumns(10);
+		
+		JPanel buttonPanel = new JPanel();
+		buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		scanningPanel.add(buttonPanel);
+		
+		btnAdd = new JButton("Add new");
+		btnAdd.setEnabled(false);
+		buttonPanel.add(btnAdd);
+		
+		btnEdit = new JButton("Edit");
+		btnEdit.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				editLot();
+			}
+		});
+		btnEdit.setEnabled(false);
+		buttonPanel.add(btnEdit);
 		
 		JLabel lblNewLabel = new JLabel(" ");
 		scanningPanel.add(lblNewLabel);
@@ -248,6 +266,10 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 
 		Client client = ClientBuilder.newClient();		
 		apiBaseTarget = client.target(apiUrl);
+		
+
+		// Note: This triggers the event, to start scanning! (Intentionally)
+		scanEnableCheckbox.setSelected(true);
 	}
 
 	public void run() {
@@ -264,6 +286,9 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 
 		statusLabel.setText("Scanning...");
 		topRowPanel.setBackground(new Color(230, 230, 250));
+		scanRef.setEditable(false);
+		btnEdit.setEnabled(false);
+		btnAdd.setEnabled(false);
 		while (scanEnableCheckbox.isSelected()) {
 			try {
 				Thread.sleep(100);
@@ -308,7 +333,10 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 					&& (now - prevScanTime < SCAN_PAUSE_TIME || data.isEmpty())) {
 				continue;
 			}
+			btnEdit.setEnabled(false);
 			scanPauseSet.clear();
+			statusLabel.setText("Scanning...");
+			topRowPanel.setBackground(new Color(230, 230, 250));
 			
 			final JTextField[] destination = {scanRef, scanLot, scanRgt};
 
@@ -340,6 +368,9 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		// End of scan loop
 		topRowPanel.setBackground(new Color(230, 230, 250));
 		statusLabel.setText("Ready");
+		btnAdd.setEnabled(true);
+		btnEdit.setEnabled(false);
+		scanRef.setEditable(true);
 	}
 
 	private void processResult(BufferedImage image, List<String> data) {
@@ -353,10 +384,10 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			workflow.setBarcodes(data);
 			
 			topRowPanel.setBackground(new Color(250, 250, 230));
+			statusLabel.setText("Saving...");
 			beep(Beep.INFO);
-			statusLabel.setText("Reading date...");
 			if (!workflow.tryGetLotDate()) {
-				System.out.println("Fallback to scanning");
+				statusLabel.setText("Analysing image for expiry date...");
 				workflow.scanExpiryDate(image);
 			}
 			scanDate.setText(workflow.getExpiryDateString());
@@ -364,11 +395,12 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				statusLabel.setText("Saving...");
 				try {
 					workflow.save();
-					scanRgt.setText(workflow.lot.uid);
+					scanRgt.setText(workflow.lot.uniqueId);
 					topRowPanel.setBackground(new Color(230, 250, 230));
 					statusLabel.setText("✓ Lot saved");
 					errorPanel.setVisible(false);
 					beep(Beep.SUCCESSS);
+					btnEdit.setEnabled(true);
 				} catch (BadRequestException e) {
 					String message = readHttpErrorMessage(e);
 					showError(message);
@@ -383,16 +415,13 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			}
 		}
 		catch (InternalServerErrorException e) {
-			beep(Beep.FAIL);
+			showError("Internal server error");
 			String error = readHttpErrorMessage(e);
 			JOptionPane.showMessageDialog(null, "500 Internal Server Error:\n" + error.substring(0, Math.min(100, error.length())));
-			showError("Internal server error");
-		} 
-		catch (IOException | ProcessingException | ClientErrorException e) {
+		} catch (IOException | ProcessingException | ClientErrorException e) {
 			// Catches communication errors and unexpected HTTP response codes 
-			beep(Beep.FAIL);
-			JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
 			showError("Communication error");
+			JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
 		} catch (InvalidBarcodeSetException e) { // Ignored, should try again
 		} catch (KitNotFoundException e) {
 			kitNameValue.setText("");
@@ -430,6 +459,28 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		errorTextArea.setText(message);
 		//errorTextArea.setBackground(Color.PINK);
 		lastErrorTime = System.currentTimeMillis();
+	}
+	
+	private void editLot() {
+		if (workflow != null && workflow.isCompleted()) {
+			workflow.lot.uniqueId = scanRgt.getText();
+			workflow.lot.expiryDate = scanDate.getText();
+			workflow.lot.lotnumber = scanLot.getText();
+			statusLabel.setText("Saving...");
+			topRowPanel.setBackground(new Color(250, 250, 230));
+			try {
+				workflow.editLot();
+				topRowPanel.setBackground(new Color(230, 250, 230));
+				statusLabel.setText("✓ Lot edited");
+				errorPanel.setVisible(false);
+				beep(Beep.SUCCESSS);
+			} catch (ProcessingException | WebApplicationException e) {
+				// Catches communication errors and unexpected HTTP response codes 
+				showError("Communication error");
+				JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
+				statusLabel.setText("Edit error");
+			} 
+		}
 	}
 	
 	public static void main(String[] args) {

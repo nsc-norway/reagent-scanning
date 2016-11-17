@@ -23,12 +23,12 @@ public class ScanResultsWorkflow {
 
 	public final String ref;
 	public Kit kit;
+	public Lot lot;
 	public List<String> barcodes;
 	private Date expiryDate;
 	private boolean completed = false;
 	long negCache = 0;
 	private final WebTarget apiBase;
-	public String lotUniqueId;
 	
 	
 	private final static ITesseract tess = new Tesseract();
@@ -116,22 +116,33 @@ public class ScanResultsWorkflow {
 	public boolean isCompleted() {
 		return completed;
 	}
+	
+	public boolean tryGetLotDate() {
+		try {
+			lot = apiBase.path("lots").path(ref).path(barcodes.get(1))
+					.request(MediaType.APPLICATION_JSON_TYPE)
+					.get(Lot.class);
+			setExpiryDate(lot.expiryDate.replace('-', '/'));
+			return true;
+		} catch (NotFoundException | ParseException e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
 
 	public void save() throws IOException {
-		Lot lot;
 		if (kit.requestLotName) {
 			lot = new Lot();
 			lot.lotnumber = barcodes.get(1);
 			lot.uid = barcodes.get(2);
 		}
-		else {
+		else if (lot != null)  {
 			// Get unique-ID from server if lot is not known
 			lot = apiBase.path("lots").path(ref).path(barcodes.get(1))
 					.request(MediaType.APPLICATION_JSON_TYPE)
 					.get(Lot.class);
 		}
-		lot.expiryDate = getExpiryDateString();
-		lotUniqueId = lot.uid;
+		lot.expiryDate = getExpiryDateString().replace('/','-');
 		lot.known = true;
 		lot.ref = ref;
 		lot = apiBase.path("lots").path(ref).path(lot.lotnumber)

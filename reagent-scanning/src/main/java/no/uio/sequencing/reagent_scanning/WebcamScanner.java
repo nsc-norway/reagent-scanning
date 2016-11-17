@@ -353,13 +353,16 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			topRowPanel.setBackground(new Color(250, 250, 230));
 			beep(Beep.INFO);
 			statusLabel.setText("Reading date...");
-			workflow.scanExpiryDate(image);
+			if (!workflow.tryGetLotDate()) {
+				System.out.println("Fallback to scanning");
+				workflow.scanExpiryDate(image);
+			}
 			scanDate.setText(workflow.getExpiryDateString());
 			if (workflow.valiDate()) {
 				statusLabel.setText("Saving...");
 				try {
 					workflow.save();
-					scanRgt.setText(workflow.lotUniqueId);
+					scanRgt.setText(workflow.lot.uid);
 					topRowPanel.setBackground(new Color(230, 250, 230));
 					statusLabel.setText("✓ Lot saved");
 					beep(Beep.SUCCESSS);

@@ -65,6 +65,14 @@ import java.awt.Component;
 import javax.swing.JButton;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
+import javax.swing.Box;
+import java.awt.FlowLayout;
+import com.jgoodies.forms.layout.FormLayout;
+import com.jgoodies.forms.layout.ColumnSpec;
+import com.jgoodies.forms.layout.FormSpecs;
+import com.jgoodies.forms.layout.RowSpec;
+import javax.swing.GroupLayout;
+import javax.swing.GroupLayout.Alignment;
 
 
 public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer {
@@ -111,7 +119,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		
 		scanPauseSet = new HashSet<>();
 		
-		setTitle("Scanner application");
+		setTitle("NSC Item Scanning");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		final Dimension res = new Dimension(1280, 720);
@@ -149,13 +157,14 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		scanningPanel.setLayout(new BoxLayout(scanningPanel, BoxLayout.Y_AXIS));
 		
 		topRowPanel = new JPanel();
+		topRowPanel.setMaximumSize(new Dimension(32767, 20));
 		topRowPanel.setBorder(new EmptyBorder(4, 4, 4, 4));
 		topRowPanel.setBackground(new Color(230, 230, 250));
 		scanningPanel.add(topRowPanel);
-		topRowPanel.setLayout(new GridLayout(0, 2, 0, 0));
+		topRowPanel.setLayout(new BorderLayout(0, 0));
 		
 		statusLabel = new JLabel("Initialising...");
-		topRowPanel.add(statusLabel);
+		topRowPanel.add(statusLabel, BorderLayout.CENTER);
 		statusLabel.setHorizontalAlignment(SwingConstants.LEFT);
 		statusLabel.setFont(new Font("Lucida Grande", Font.PLAIN, 20));
 		
@@ -170,49 +179,81 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			}
 		});
 		scanEnableCheckbox.setHorizontalAlignment(SwingConstants.TRAILING);
-		topRowPanel.add(scanEnableCheckbox);
+		topRowPanel.add(scanEnableCheckbox, BorderLayout.EAST);
 		
 		JPanel scanBox = new JPanel();
 		scanBox.setBorder(new EmptyBorder(4, 4, 4, 4));
 		scanningPanel.add(scanBox);
 		scanBox.setBackground(UIManager.getColor("Panel.background"));
-		scanBox.setLayout(new GridLayout(0, 2, 0, 0));
 		
 		JLabel lblKitName = new JLabel("KIT");
-		scanBox.add(lblKitName);
 		
 		kitNameValue = new JLabel("");
 		kitNameValue.setFont(new Font("Lucida Grande", Font.PLAIN, 15));
-		scanBox.add(kitNameValue);
 		
 		JLabel lblRefBox = new JLabel("REF");
-		scanBox.add(lblRefBox);
 		
 		scanRef = new JTextField();
 		scanRef.setEditable(false);
-		scanBox.add(scanRef);
 		scanRef.setColumns(10);
 		
 		JLabel lblLot = new JLabel("LOT");
-		scanBox.add(lblLot);
 		
 		scanLot = new JTextField();
-		scanBox.add(scanLot);
 		scanLot.setColumns(10);
 		
 		JLabel lblRgt = new JLabel("RGT");
-		scanBox.add(lblRgt);
 		
 		scanRgt = new JTextField();
-		scanBox.add(scanRgt);
 		scanRgt.setColumns(10);
 		
 		JLabel lblDate = new JLabel("Date");
-		scanBox.add(lblDate);
 		
 		scanDate = new JTextField();
-		scanBox.add(scanDate);
 		scanDate.setColumns(10);
+		GroupLayout gl_scanBox = new GroupLayout(scanBox);
+		gl_scanBox.setHorizontalGroup(
+			gl_scanBox.createParallelGroup(Alignment.LEADING)
+				.addGroup(gl_scanBox.createSequentialGroup()
+					.addGap(6)
+					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
+						.addGroup(gl_scanBox.createSequentialGroup()
+							.addComponent(lblKitName, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE)
+							.addComponent(kitNameValue, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE))
+						.addGroup(gl_scanBox.createSequentialGroup()
+							.addComponent(lblRefBox, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE)
+							.addComponent(scanRef, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE))
+						.addGroup(gl_scanBox.createSequentialGroup()
+							.addComponent(lblLot, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE)
+							.addComponent(scanLot, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE))
+						.addGroup(gl_scanBox.createSequentialGroup()
+							.addComponent(lblRgt, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE)
+							.addComponent(scanRgt, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE))
+						.addGroup(gl_scanBox.createSequentialGroup()
+							.addComponent(lblDate, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE)
+							.addComponent(scanDate, GroupLayout.PREFERRED_SIZE, 166, GroupLayout.PREFERRED_SIZE))))
+		);
+		gl_scanBox.setVerticalGroup(
+			gl_scanBox.createParallelGroup(Alignment.LEADING)
+				.addGroup(gl_scanBox.createSequentialGroup()
+					.addGap(3)
+					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
+						.addComponent(lblKitName, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
+						.addComponent(kitNameValue, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE))
+					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
+						.addComponent(lblRefBox, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
+						.addComponent(scanRef, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
+						.addComponent(lblLot, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
+						.addComponent(scanLot, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
+						.addComponent(lblRgt, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
+						.addComponent(scanRgt, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
+						.addComponent(lblDate, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
+						.addComponent(scanDate, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)))
+		);
+		scanBox.setLayout(gl_scanBox);
 		
 		JPanel buttonPanel = new JPanel();
 		buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -233,6 +274,9 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		
 		JLabel lblNewLabel = new JLabel(" ");
 		scanningPanel.add(lblNewLabel);
+		
+		Component horizontalStrut = Box.createHorizontalStrut(300);
+		scanningPanel.add(horizontalStrut);
 		
 		JPanel padding = new JPanel();
 		padding.setBorder(new EmptyBorder(10, 10, 10, 10));

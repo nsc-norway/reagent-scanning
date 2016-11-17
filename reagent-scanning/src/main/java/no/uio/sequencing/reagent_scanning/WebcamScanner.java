@@ -36,7 +36,9 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.SoftBevelBorder;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.ProcessingException;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
@@ -110,7 +112,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		setTitle("Scanner application");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		final Dimension res = new Dimension(1280, 1024);
+		final Dimension res = new Dimension(1280, 720);
 		webcam = Webcam.getDefault();
 		if (webcam == null) {
 			JOptionPane.showMessageDialog(null, "Error: No webcam detected");
@@ -365,14 +367,10 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 					scanRgt.setText(workflow.lot.uid);
 					topRowPanel.setBackground(new Color(230, 250, 230));
 					statusLabel.setText("✓ Lot saved");
+					errorPanel.setVisible(false);
 					beep(Beep.SUCCESSS);
 				} catch (BadRequestException e) {
-					String message = "UNKNOWN ERROR!";
-					if (e.getResponse().getEntity() instanceof InputStream) {
-						StringWriter writer = new StringWriter();
-						IOUtils.copy((InputStream)e.getResponse().getEntity(), writer, "UTF-8");
-						message = writer.toString();
-					}
+					String message = readHttpErrorMessage(e);
 					showError(message);
 				}
 				// This enables a pause between scan attempts after completion
@@ -384,10 +382,17 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				showError("Unlikely date: in the past or too far in the future.");
 			}
 		}
+		catch (InternalServerErrorException e) {
+			beep(Beep.FAIL);
+			String error = readHttpErrorMessage(e);
+			JOptionPane.showMessageDialog(null, "500 Internal Server Error:\n" + error.substring(0, Math.min(100, error.length())));
+			showError("Internal server error");
+		} 
 		catch (IOException | ProcessingException | ClientErrorException e) {
 			// Catches communication errors and unexpected HTTP response codes 
 			beep(Beep.FAIL);
 			JOptionPane.showMessageDialog(null, "Input/Output error while communicating with the backend:\n\n" + e.toString());
+			showError("Communication error");
 		} catch (InvalidBarcodeSetException e) { // Ignored, should try again
 		} catch (KitNotFoundException e) {
 			kitNameValue.setText("");
@@ -403,6 +408,20 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			statusLabel.setText("Scanning...");
 			topRowPanel.setBackground(new Color(230, 230, 250));
 		}
+	}
+
+	private String readHttpErrorMessage(WebApplicationException e) {
+		String message = "UNKNOWN ERROR!";
+		if (e.getResponse().getEntity() instanceof InputStream) {
+			StringWriter writer = new StringWriter();
+			try {
+				IOUtils.copy((InputStream)e.getResponse().getEntity(), writer, "UTF-8");
+			} catch (IOException e2) {
+				message = "Unable to get error message";
+			}
+			message = writer.toString();
+		}
+		return message;
 	}
 
 	private void showError(String message) {

@@ -122,6 +122,9 @@ public class ScanResultsWorkflow {
 			lot = apiBase.path("lots").path(ref).path(barcodes.get(1))
 					.request(MediaType.APPLICATION_JSON_TYPE)
 					.get(Lot.class);
+			if (lot.expiryDate == null) {
+				return false;
+			}
 			setExpiryDate(lot.expiryDate.replace('-', '/'));
 			return true;
 		} catch (NotFoundException | ParseException e) {

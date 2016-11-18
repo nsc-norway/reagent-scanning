@@ -354,6 +354,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		scanRef.setEditable(false);
 		btnEdit.setEnabled(false);
 		btnAdd.setEnabled(false);
+		webcamPanelRef.resume();
 		while (scanEnableCheckbox.isSelected()) {
 			try {
 				Thread.sleep(100);
@@ -432,6 +433,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				webcamPanelRef.resume();
 			}
 		}
+		webcamPanelRef.pause();
 		// End of scan loop
 		topRowPanel.setBackground(new Color(230, 230, 250));
 		statusLabel.setText("Ready");

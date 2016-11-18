@@ -113,7 +113,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	}
 	
 
-	public WebcamScanner(String apiUrl) {
+	public WebcamScanner(String apiUrl, int x, int y, int icam) {
 		super();
 		
 		scanPauseSet = new HashSet<>();
@@ -121,8 +121,13 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		setTitle("NSC Item Scanning");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		final Dimension res = new Dimension(1280, 720);
-		webcam = Webcam.getDefault();
+		final Dimension res = new Dimension(x, y);
+		if (icam == -1) {
+			webcam = Webcam.getDefault();
+		}
+		else {
+			webcam = Webcam.getWebcams().get(icam);
+		}
 		if (webcam == null) {
 			JOptionPane.showMessageDialog(null, "Error: No webcam detected");
 			System.exit(1);
@@ -592,13 +597,20 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		
 	
 	public static void main(String[] args) {
+		String url = "http://localhost:5001/";
 		if (args.length >= 1) {
-			new WebcamScanner(args[0]);
+			url = args[0];
 		}
-		else {
-			new WebcamScanner("http://localhost:5001/");
-			//JOptionPane.showMessageDialog(null, "Error: WebcamScanner must be called with the base API URL as a command line argument.");
+		int x = 1280, y = 1024, icam = -1;
+		if (args.length >= 3) {
+			x = Integer.parseInt(args[1]);
+			y = Integer.parseInt(args[2]);
 		}
+		if (args.length >= 4) {
+			icam = Integer.parseInt(args[3]);
+		}
+		new WebcamScanner(url, x, y, icam);
+	
 	}
 
 	@Override

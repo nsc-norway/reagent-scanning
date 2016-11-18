@@ -126,8 +126,8 @@ public class NewKitDialog extends JDialog {
 		kit.hasUniqueId = uniqueIdCheck.isSelected();
 		try {
 			apiBase.path("kits")
-				.request(MediaType.APPLICATION_JSON_TYPE)
-				.post(Entity.entity(kit, MediaType.APPLICATION_JSON_TYPE));
+				.request(MediaType.TEXT_PLAIN_TYPE)
+				.post(Entity.entity(kit, MediaType.APPLICATION_JSON_TYPE), String.class);
 			JOptionPane.showMessageDialog(this, "Kit added successfully", "Add new kit", JOptionPane.INFORMATION_MESSAGE);
 			kil.kitServerStatusChanged(kit.ref);
 			dispose();

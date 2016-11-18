@@ -404,14 +404,20 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				resultMap.put(r.getResultPoints()[0].getY(), r.getText());
 			}
 			List<String> data = new ArrayList<String>(resultMap.values());
-			if (!scanPauseSet.isEmpty() && scanPauseSet.containsAll(data) 
-					&& (now - prevScanTime < SCAN_PAUSE_TIME || data.isEmpty())) {
+			
+			boolean noNewBarcodes = !scanPauseSet.isEmpty() && scanPauseSet.containsAll(data);
+			boolean timeout = now - prevScanTime >= SCAN_PAUSE_TIME;
+
+			if (timeout || !noNewBarcodes) {
+				statusLabel.setText("Scanning...");
+				topRowPanel.setBackground(new Color(230, 230, 250));
+			}
+			if (noNewBarcodes && (!timeout || data.isEmpty())) {
 				continue;
 			}
+			
 			btnEdit.setEnabled(false);
 			scanPauseSet.clear();
-			statusLabel.setText("Scanning...");
-			topRowPanel.setBackground(new Color(230, 230, 250));
 			
 			final JTextField[] destination = {scanRef, scanLot, scanRgt};
 

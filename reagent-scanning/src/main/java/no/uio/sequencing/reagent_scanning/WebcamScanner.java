@@ -52,6 +52,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.commons.io.IOUtils;
+import org.glassfish.jersey.moxy.json.MoxyJsonFeature;
 
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamImageTransformer;
@@ -329,7 +330,9 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		//setExtendedState(JFrame.MAXIMIZED_BOTH); 
 		setVisible(true);
 
-		Client client = ClientBuilder.newClient();		
+		Client client = ClientBuilder.newBuilder()
+				.register(MoxyJsonFeature.class)
+				.build();		
 		apiBaseTarget = client.target(apiUrl);
 		
 

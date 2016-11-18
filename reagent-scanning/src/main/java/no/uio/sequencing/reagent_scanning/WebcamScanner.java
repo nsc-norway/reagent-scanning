@@ -90,6 +90,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	private JLabel statusLabel;
 	
 	long prevScanTime, lastErrorTime;
+	private boolean returnToScanning = false;
 	
 	ScanResultsWorkflow workflow = null;
 	
@@ -181,6 +182,8 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 					Thread thread = new Thread(WebcamScanner.this);
 					thread.setDaemon(true);
 					thread.start();
+				}
+				else {
 				}
 			}
 		});
@@ -352,13 +355,16 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		mfReader.setHints(hints);
 		GenericMultipleBarcodeReader reader = new GenericMultipleBarcodeReader(mfReader);
 
-		statusLabel.setText("Scanning...");
-		topRowPanel.setBackground(new Color(230, 230, 250));
+		if (!returnToScanning) { // If in return to.. mode, we want to show "Saved" / what ever
+			statusLabel.setText("Scanning...");
+			topRowPanel.setBackground(new Color(230, 230, 250));
+		}
 		scanRef.setEditable(false);
 		btnEdit.setEnabled(false);
 		btnAdd.setEnabled(false);
-		webcamPanelRef.resume();
+		returnToScanning = false;
 		while (scanEnableCheckbox.isSelected()) {
+			webcamPanelRef.resume();
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
@@ -433,13 +439,14 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			if (data.size() >= 2) {
 				webcamPanelRef.pause();
 				processResult(image, data);
-				webcamPanelRef.resume();
 			}
+		}
+		if (!returnToScanning) {
+			topRowPanel.setBackground(new Color(230, 230, 250));
+			statusLabel.setText("Ready");
 		}
 		webcamPanelRef.pause();
 		// End of scan loop
-		topRowPanel.setBackground(new Color(230, 230, 250));
-		statusLabel.setText("Ready");
 		btnAdd.setEnabled(true);
 		btnEdit.setEnabled(false);
 		scanRef.setEditable(true);
@@ -502,10 +509,14 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			prevScanTime = System.currentTimeMillis();
 			scanPauseSet = new HashSet<String>(data);
 		} catch (DateParsingException e) {
-			String message = "Unable to find the expiry date.";
+			String message = "Unable to find the expiry date. Enter date manually or click \"scan\" (top right).";
+			statusLabel.setText("Manual entry mode");
 			showError(message);
+			scanEnableCheckbox.setSelected(false);
+			returnToScanning = true;
+			btnAdd.setEnabled(true);
 		}
-		if (!workflow.isCompleted()) {
+		if (!workflow.isCompleted() && scanEnableCheckbox.isSelected()) {
 			statusLabel.setText("Scanning...");
 			topRowPanel.setBackground(new Color(230, 230, 250));
 		}
@@ -585,7 +596,16 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			scanLot.setText("");
 			scanRgt.setText("");
 			scanDate.setText("");
+			kitNameValue.setText("");
 			saveOk = true;
+			if (returnToScanning) {
+				scanPauseSet = new HashSet<String>();
+				scanPauseSet.add(workflow.lotNumber);
+				scanPauseSet.add(workflow.ref);
+				scanPauseSet.add(workflow.uniqueId);
+				prevScanTime = System.currentTimeMillis();
+				scanEnableCheckbox.setSelected(true);
+			}
 		}
 		catch (WebApplicationException e) {
 			String message = readHttpErrorMessage(e);

@@ -4,11 +4,11 @@
 
   <groupId>no.uio.sequencing</groupId>
   <artifactId>reagent-scanning</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.9</version>
   <packaging>jar</packaging>
 
   <name>reagent-scanning</name>
-  <url>http://maven.apache.org</url>
+  <url>http://sequencing.uio.no</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -78,6 +78,16 @@
     	<groupId>commons-io</groupId>
     	<artifactId>commons-io</artifactId>
     	<version>2.4</version>
+    </dependency>
+    <dependency>
+    	<groupId>com.jgoodies</groupId>
+    	<artifactId>jgoodies-common</artifactId>
+    	<version>1.8.1</version>
+    </dependency>
+    <dependency>
+    	<groupId>com.jgoodies</groupId>
+    	<artifactId>jgoodies-forms</artifactId>
+    	<version>1.9.0</version>
     </dependency>
   </dependencies>
 </project>

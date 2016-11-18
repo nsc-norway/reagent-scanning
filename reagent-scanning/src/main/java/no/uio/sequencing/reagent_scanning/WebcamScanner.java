@@ -2,9 +2,12 @@ package no.uio.sequencing.reagent_scanning;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.geom.AffineTransform;
@@ -21,7 +24,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.GroupLayout;
+import javax.swing.GroupLayout.Alignment;
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -29,6 +36,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.border.BevelBorder;
@@ -61,17 +69,9 @@ import com.google.zxing.multi.GenericMultipleBarcodeReader;
 
 import sun.audio.AudioPlayer;
 import sun.audio.AudioStream;
-import java.awt.Component;
-import javax.swing.JButton;
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
-import javax.swing.Box;
-import javax.swing.GroupLayout;
-import javax.swing.GroupLayout.Alignment;
-import javax.swing.LayoutStyle.ComponentPlacement;
 
 
-public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer {
+public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer, KitInvalidationListener {
 
 	private static final long serialVersionUID = 6441489127408381878L;
 
@@ -81,6 +81,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	private final static boolean ENABLE_MIRROR = false;
 
 	private Webcam webcam = null;
+	private WebcamPanel webcamPanelRef;
 	private JTextField scanRef;
 	private JTextField scanLot;
 	private JTextField scanRgt;
@@ -102,6 +103,8 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 	private JButton btnAdd;
 
 	private JButton btnEdit;
+
+	private NewKitDialog newKitDialog;
 	
 	enum Beep {
 		SUCCESSS,
@@ -137,7 +140,8 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		
 		JPanel webcamPanel = new JPanel();
 		if (webcam != null) {
-			webcamPanel = new WebcamPanel(webcam);
+			webcamPanelRef = new WebcamPanel(webcam);
+			webcamPanel = webcamPanelRef;
 		}
 		webcamPanel.setBorder(new SoftBevelBorder(BevelBorder.LOWERED, null, null, null, null));
 		webcamPanel.setPreferredSize(res);
@@ -258,7 +262,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		scanningPanel.add(buttonPanel);
 		
-		btnAdd = new JButton("Add new");
+		btnAdd = new JButton("Add lot");
 		btnAdd.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				manualAddLot();
@@ -305,6 +309,14 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		JPanel optionsPanel = new JPanel();
 		padding.add(optionsPanel, BorderLayout.SOUTH);
 		optionsPanel.setLayout(new BorderLayout(0, 0));
+		
+		JButton btnNewKitType = new JButton("New kit type...");
+		btnNewKitType.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				showNewKitDialog();
+			}
+		});
+		padding.add(btnNewKitType, BorderLayout.SOUTH);
 		
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		pack();
@@ -410,7 +422,9 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			}
 			
 			if (data.size() >= 2) {
+				webcamPanelRef.pause();
 				processResult(image, data);
+				webcamPanelRef.resume();
 			}
 		}
 		// End of scan loop
@@ -421,7 +435,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		scanRef.setEditable(true);
 	}
 
-	private void processResult(BufferedImage image, List<String> data) {
+	private synchronized void processResult(BufferedImage image, List<String> data) {
 		try { // Globally catch IO exceptions (communication error)
 			if (workflow == null || !workflow.ref.equals(data.get(0))) {
 				statusLabel.setText("Kit lookup...");
@@ -487,7 +501,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		}
 	}
 
-	private String readHttpErrorMessage(WebApplicationException e) {
+	public static String readHttpErrorMessage(WebApplicationException e) {
 		String message = "UNKNOWN ERROR!";
 		if (e.getResponse().getEntity() instanceof InputStream) {
 			StringWriter writer = new StringWriter();
@@ -509,7 +523,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		lastErrorTime = System.currentTimeMillis();
 	}
 
-	private void editLot() {
+	private synchronized void editLot() {
 		if (workflow != null && workflow.isCompleted()) {
 			workflow.lot.uniqueId = scanRgt.getText();
 			workflow.lot.expiryDate = scanDate.getText();
@@ -531,7 +545,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		}
 	}
 	
-	private void manualAddLot() {
+	private synchronized void manualAddLot() {
 		boolean saveOk = false;
 		try {
 			topRowPanel.setBackground(new Color(250, 250, 230));
@@ -627,6 +641,31 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			AudioPlayer.player.start(as);
 		} catch (Exception e) { // Swallow all exceptions, beep is not important
 			e.printStackTrace();
+		}
+	}
+
+	private void showNewKitDialog() {
+		if (newKitDialog == null || !newKitDialog.isDisplayable()) {
+			newKitDialog = new NewKitDialog(apiBaseTarget, this);
+		}
+		else {
+			java.awt.EventQueue.invokeLater(new Runnable() {
+			    @Override
+			    public void run() {
+			    	newKitDialog.toFront();
+			    	newKitDialog.repaint();
+			    }
+			});
+		}
+		if (!scanRef.getText().isEmpty()) {
+			newKitDialog.setRef(scanRef.getText());
+		}
+	}
+
+	@Override
+	public synchronized void kitServerStatusChanged(String ref) {
+		if (workflow != null && workflow.ref.equals(ref)) {
+			workflow = null;
 		}
 	}
 }

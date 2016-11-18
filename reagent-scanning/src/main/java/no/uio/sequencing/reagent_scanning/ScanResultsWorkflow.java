@@ -69,7 +69,7 @@ public class ScanResultsWorkflow {
 	public void setBarcodes(List<String> barcodes) throws InvalidBarcodeSetException, IOException {
 		this.completed = false;
 		
-		if (kit.requestLotName) {
+		if (kit.hasUniqueId) {
 			if (barcodes.size() == 3) {
 				lotNumber = barcodes.get(1);
 				uniqueId = barcodes.get(2);
@@ -144,7 +144,7 @@ public class ScanResultsWorkflow {
 	}
 
 	public void save() throws IOException {
-		if (kit.requestLotName) {
+		if (kit.hasUniqueId) {
 			lot = new Lot();
 			lot.lotnumber = lotNumber;
 			lot.uniqueId = uniqueId;

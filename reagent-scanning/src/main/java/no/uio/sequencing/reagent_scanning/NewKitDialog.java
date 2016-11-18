@@ -110,6 +110,7 @@ public class NewKitDialog extends JDialog {
 				submitKit();
 			}
 		});
+		setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 		getContentPane().add(btnOk, "5, 18");
 		getRootPane().setDefaultButton(btnOk);
 		pack();

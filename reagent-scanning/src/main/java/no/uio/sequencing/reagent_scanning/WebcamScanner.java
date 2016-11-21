@@ -521,6 +521,7 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 			scanEnableCheckbox.setSelected(false);
 			returnToScanning = true;
 			btnAdd.setEnabled(true);
+			scanDate.requestFocusInWindow();
 		}
 		if (!workflow.isCompleted() && scanEnableCheckbox.isSelected()) {
 			statusLabel.setText("Scanning...");

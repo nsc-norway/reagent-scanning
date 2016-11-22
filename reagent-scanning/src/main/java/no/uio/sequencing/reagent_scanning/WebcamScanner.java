@@ -475,7 +475,12 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 				statusLabel.setText("Analysing image for expiry date...");
 				workflow.scanExpiryDate(image);
 			}
-			scanDate.setText(workflow.getExpiryDateString());
+			try {
+				scanDate.setText(workflow.getExpiryDateString());
+			} catch (UnsatisfiedLinkError e) {
+				JOptionPane.showMessageDialog(null, "Error: Text recognition software not available.");
+				throw new DateParsingException();
+			}
 			if (workflow.valiDate()) {
 				statusLabel.setText("Saving...");
 				try {

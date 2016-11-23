@@ -149,9 +149,9 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		if (webcam != null) {
 			webcamPanelRef = new WebcamPanel(webcam);
 			webcamPanel = webcamPanelRef;
+			webcamPanelRef.setFitArea(true);
 		}
 		webcamPanel.setBorder(new SoftBevelBorder(BevelBorder.LOWERED, null, null, null, null));
-		webcamPanel.setPreferredSize(res);
 		panel.add(webcamPanel, BorderLayout.CENTER);
 		
 		JPanel textPanel = new JPanel();

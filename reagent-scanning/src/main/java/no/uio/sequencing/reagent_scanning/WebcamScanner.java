@@ -55,16 +55,15 @@ import org.glassfish.jersey.moxy.json.MoxyJsonFeature;
 
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamPanel;
-import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.DecodeHintType;
 import com.google.zxing.LuminanceSource;
-import com.google.zxing.MultiFormatReader;
 import com.google.zxing.NotFoundException;
 import com.google.zxing.Result;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.multi.GenericMultipleBarcodeReader;
+import com.google.zxing.oned.Code128Reader;
 
 import sun.audio.AudioPlayer;
 import sun.audio.AudioStream;
@@ -152,7 +151,11 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		webcamPanel.setPreferredSize(res);
 		panel.add(webcamPanel, BorderLayout.CENTER);
 		if (res.getHeight() > screenSize.getHeight() * 0.9) {
-			webcamPanel.setPreferredSize(screenSize);
+			webcamPanel.setPreferredSize(
+					new Dimension(
+							(int)(screenSize.getWidth()*0.8f),
+							(int)(screenSize.getHeight()*0.8f))
+					);
 		}
 		
 		JPanel textPanel = new JPanel();
@@ -346,15 +349,10 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 
 	public void run() {
 
-		final MultiFormatReader mfReader = new MultiFormatReader();
-		final List<BarcodeFormat> allowedFormats = new ArrayList<>();
-		allowedFormats.add(BarcodeFormat.CODE_128);
-		allowedFormats.add(BarcodeFormat.DATA_MATRIX);
+		final Code128Reader codeReader = new Code128Reader();
 		final HashMap<DecodeHintType, Object> hints = new HashMap<>();
-		hints.put(DecodeHintType.POSSIBLE_FORMATS, allowedFormats);
 		hints.put(DecodeHintType.TRY_HARDER, true);
-		mfReader.setHints(hints);
-		GenericMultipleBarcodeReader reader = new GenericMultipleBarcodeReader(mfReader);
+		GenericMultipleBarcodeReader reader = new GenericMultipleBarcodeReader(codeReader);
 
 		if (!returnToScanning) { // If in return to.. mode, we want to show "Saved" / what ever
 			statusLabel.setText("Scanning...");
@@ -385,7 +383,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 				BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
 
 				try {
-					results = reader.decodeMultiple(bitmap);
+					results = reader.decodeMultiple(bitmap, hints);
 				} catch (NotFoundException e) {
 					// fall thru, it means there is no QR code in image
 				}

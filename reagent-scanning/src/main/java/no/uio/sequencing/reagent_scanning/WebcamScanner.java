@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
@@ -146,8 +147,13 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			webcamPanel = webcamPanelRef;
 			webcamPanelRef.setFitArea(true);
 		}
+		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		webcamPanel.setBorder(new SoftBevelBorder(BevelBorder.LOWERED, null, null, null, null));
+		webcamPanel.setPreferredSize(res);
 		panel.add(webcamPanel, BorderLayout.CENTER);
+		if (res.getHeight() > screenSize.getHeight() * 0.9) {
+			webcamPanel.setPreferredSize(screenSize);
+		}
 		
 		JPanel textPanel = new JPanel();
 		panel.add(textPanel, BorderLayout.EAST);

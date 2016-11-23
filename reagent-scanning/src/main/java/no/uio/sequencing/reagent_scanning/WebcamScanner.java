@@ -5,12 +5,10 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,7 +53,6 @@ import org.apache.commons.io.IOUtils;
 import org.glassfish.jersey.moxy.json.MoxyJsonFeature;
 
 import com.github.sarxos.webcam.Webcam;
-import com.github.sarxos.webcam.WebcamImageTransformer;
 import com.github.sarxos.webcam.WebcamPanel;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
@@ -72,14 +69,13 @@ import sun.audio.AudioPlayer;
 import sun.audio.AudioStream;
 
 
-public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransformer, KitInvalidationListener {
+public class WebcamScanner extends JFrame implements Runnable, KitInvalidationListener {
 
 	private static final long serialVersionUID = 6441489127408381878L;
 
 	private static final long SCAN_PAUSE_TIME = 5000;
 
 	private static final long ERROR_DISPLAY_TIME = 5000;
-	private final static boolean ENABLE_MIRROR = false;
 
 	private Webcam webcam = null;
 	private WebcamPanel webcamPanelRef;
@@ -137,7 +133,6 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		else {
 			webcam.setCustomViewSizes(new Dimension[] {res});
 			webcam.setViewSize(res);
-			webcam.setImageTransformer(this);
 		}
 		getContentPane().setLayout(new BorderLayout(0, 0));
 		
@@ -366,14 +361,13 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		while (scanEnableCheckbox.isSelected()) {
 			webcamPanelRef.resume();
 			Result [] results = {};
-			BufferedImage image = null, mirrorImage = null;
+			BufferedImage image = null;
 
 			if (webcam != null && webcam.isOpen()) {
 
-				if ((mirrorImage = webcam.getImage()) == null) {
+				if ((image = webcam.getImage()) == null) {
 					continue;
 				}
-				image = transform(mirrorImage);
 				/*
 				 * Debug: Read from local file instead
 				 * try {
@@ -642,27 +636,6 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		}
 		new WebcamScanner(url, x, y, icam);
 	
-	}
-
-	@Override
-	public BufferedImage transform(BufferedImage image) {
-		if (ENABLE_MIRROR) {
-			// Mirror image
-			AffineTransform at = new AffineTransform();
-	        at.concatenate(AffineTransform.getScaleInstance(-1, 1));
-	        at.concatenate(AffineTransform.getTranslateInstance(-image.getWidth(), 0));
-	        BufferedImage newImage = new BufferedImage(
-	                image.getWidth(), image.getHeight(),
-	                BufferedImage.TYPE_INT_ARGB);
-	        Graphics2D g = newImage.createGraphics();
-	        g.transform(at);
-	        g.drawImage(image, 0, 0, null);
-	        g.dispose();
-	        return newImage;
-		}
-		else {
-			return image;
-		}
 	}
 	
 	void beep(Beep beep) {

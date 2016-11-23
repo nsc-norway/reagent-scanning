@@ -365,12 +365,6 @@ public class WebcamScanner extends JFrame implements Runnable, WebcamImageTransf
 		returnToScanning = false;
 		while (scanEnableCheckbox.isSelected()) {
 			webcamPanelRef.resume();
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-
 			Result [] results = {};
 			BufferedImage image = null, mirrorImage = null;
 

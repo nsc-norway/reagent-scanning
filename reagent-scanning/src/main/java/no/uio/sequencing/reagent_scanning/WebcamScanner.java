@@ -465,14 +465,15 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			beep(Beep.INFO);
 			if (!workflow.tryGetLotDate()) {
 				statusLabel.setText("Analysing image for expiry date...");
-				workflow.scanExpiryDate(image);
+				try {
+					workflow.scanExpiryDate(image);
+				} catch (UnsatisfiedLinkError e) {
+					JOptionPane.showMessageDialog(null, "Error: Text recognition software not available.");
+					throw new DateParsingException();
+				}
 			}
-			try {
-				scanDate.setText(workflow.getExpiryDateString());
-			} catch (UnsatisfiedLinkError e) {
-				JOptionPane.showMessageDialog(null, "Error: Text recognition software not available.");
-				throw new DateParsingException();
-			}
+			scanDate.setText(workflow.getExpiryDateString());
+			
 			if (workflow.valiDate()) {
 				statusLabel.setText("Saving...");
 				try {

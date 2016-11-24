@@ -467,6 +467,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 				statusLabel.setText("Analysing image for expiry date...");
 				try {
 					workflow.scanExpiryDate(image);
+					scanDate.setBackground(Color.YELLOW);
 				} catch (UnsatisfiedLinkError e) {
 					JOptionPane.showMessageDialog(null, "Error: Text recognition software not available.");
 					throw new DateParsingException();
@@ -493,8 +494,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 				scanPauseSet = new HashSet<String>(data);
 			}
 			else {
-				scanDate.setBackground(Color.ORANGE);
-				showError("Unlikely date: in the past or too far in the future.");
+				throw new DateParsingException();
 			}
 		}
 		catch (InternalServerErrorException e) {
@@ -519,6 +519,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			scanEnableCheckbox.setSelected(false);
 			returnToScanning = true;
 			btnAdd.setEnabled(true);
+			scanDate.setBackground(Color.YELLOW);
 			scanDate.requestFocusInWindow();
 		}
 		if (!workflow.isCompleted() && scanEnableCheckbox.isSelected()) {
@@ -558,6 +559,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			topRowPanel.setBackground(new Color(250, 250, 230));
 			try {
 				workflow.editLot();
+				scanDate.setBackground(UIManager.getColor("TextArea.background"));
 				topRowPanel.setBackground(new Color(230, 250, 230));
 				statusLabel.setText("✓ Lot edited");
 				errorPanel.setVisible(false);
@@ -601,6 +603,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			scanLot.setText("");
 			scanRgt.setText("");
 			scanDate.setText("");
+			scanDate.setBackground(UIManager.getColor("TextArea.background"));
 			kitNameValue.setText("");
 			saveOk = true;
 			if (returnToScanning) {

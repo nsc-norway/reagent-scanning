@@ -436,7 +436,12 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			
 			if (data.size() >= 2) {
 				webcamPanelRef.pause();
+				final JTextField[] fields = {scanLot, scanRgt, scanDate};
+				for (JTextField field: fields)
+					field.setEditable(false);
 				processResult(image, data);
+				for (JTextField field: fields)
+					field.setEditable(true);
 			}
 		}
 		if (!returnToScanning) {

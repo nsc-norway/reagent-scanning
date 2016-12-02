@@ -110,6 +110,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		FAIL
 	}
 	
+	private int dots = 0;
 
 	public WebcamScanner(String apiUrl, int x, int y, int icam) {
 		super();
@@ -401,7 +402,14 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			boolean timeout = now - prevScanTime >= SCAN_PAUSE_TIME;
 
 			if (timeout || !noNewBarcodes) {
-				statusLabel.setText("Scanning...");
+				String dotsStr = "";
+				for (int i=0; i < dots; ++i)
+					dotsStr += ".";
+				if (dots++ == 4) {
+					dots = 0;
+				}
+				statusLabel.setText("Scanning" + dotsStr);
+				
 				topRowPanel.setBackground(new Color(230, 230, 250));
 			}
 			if (noNewBarcodes && (!timeout || data.isEmpty())) {

@@ -612,12 +612,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			statusLabel.setText("✓ Lot saved");
 			errorPanel.setVisible(false);
 			beep(Beep.SUCCESSS);
-			scanRef.setText("");
-			scanLot.setText("");
-			scanRgt.setText("");
-			scanDate.setText("");
 			scanDate.setBackground(UIManager.getColor("TextArea.background"));
-			kitNameValue.setText("");
 			saveOk = true;
 			if (returnToScanning) {
 				scanPauseSet = new HashSet<String>();
@@ -626,6 +621,15 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 				scanPauseSet.add(workflow.uniqueId);
 				prevScanTime = System.currentTimeMillis();
 				scanEnableCheckbox.setSelected(true);
+				scanRgt.setText(workflow.lot.assignedUniqueId);
+				scanDate.setText(workflow.lot.expiryDate);
+			}
+			else {
+				scanRef.setText("");
+				scanLot.setText("");
+				scanRgt.setText("");
+				scanDate.setText("");
+				kitNameValue.setText("");
 			}
 		}
 		catch (WebApplicationException e) {

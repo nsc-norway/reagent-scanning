@@ -110,9 +110,9 @@ public class ScanResultsWorkflow {
 	public boolean valiDate() {
 		Calendar yesterday = Calendar.getInstance();
 		yesterday.add(Calendar.DATE, -1);
-		Calendar twoYearsInFuture = Calendar.getInstance();
-		twoYearsInFuture.add(Calendar.YEAR, 2);
-		return (expiryDate.after(yesterday.getTime()) && expiryDate.before(twoYearsInFuture.getTime()));
+		Calendar futureMaxValid = Calendar.getInstance();
+		futureMaxValid.add(Calendar.YEAR, 10);
+		return (expiryDate.after(yesterday.getTime()) && expiryDate.before(futureMaxValid.getTime()));
 	}
 
 	public Date getExpiryDate() {

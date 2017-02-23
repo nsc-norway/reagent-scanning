@@ -4,6 +4,6 @@ public class Kit {
 
 	public String name, ref, lotcode;
 	public boolean found;
-	public boolean hasUniqueId;
+	public boolean hasUniqueId, setActive;
 
 }

@@ -10,9 +10,9 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JTextField;
-import javax.ws.rs.ClientErrorException;
+import javax.swing.SwingConstants;
 import javax.ws.rs.ProcessingException;
-import javax.ws.rs.ServerErrorException;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -31,6 +31,7 @@ public class NewKitDialog extends JDialog {
 	private JTextField kitNameField;
 	private JTextField versionSubtypeField;
 	private JCheckBox uniqueIdCheck;
+	private JCheckBox setActiveCheck;
 	
 	public NewKitDialog(WebTarget apiBase, KitInvalidationListener kil) {
 		this.apiBase = apiBase;
@@ -94,6 +95,7 @@ public class NewKitDialog extends JDialog {
 		getContentPane().add(lblHasUniqueId, "2, 14, right, default");
 		
 		uniqueIdCheck = new JCheckBox("(3 barcodes)");
+		uniqueIdCheck.setSelected(true);
 		getContentPane().add(uniqueIdCheck, "4, 14, 2, 1");
 		
 		JButton btnCancel = new JButton("Cancel");
@@ -102,6 +104,14 @@ public class NewKitDialog extends JDialog {
 				dispose();
 			}
 		});
+		
+		JLabel lblNewLabel = new JLabel("Set ACTIVE?");
+		lblNewLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+		getContentPane().add(lblNewLabel, "2, 16");
+		
+		setActiveCheck = new JCheckBox("");
+		setActiveCheck.setSelected(true);
+		getContentPane().add(setActiveCheck, "4, 16");
 		getContentPane().add(btnCancel, "4, 18");
 		
 		JButton btnOk = new JButton("Add new kit");
@@ -124,6 +134,7 @@ public class NewKitDialog extends JDialog {
 		kit.name = kitNameField.getText();
 		kit.lotcode = versionSubtypeField.getText();
 		kit.hasUniqueId = uniqueIdCheck.isSelected();
+		kit.setActive = setActiveCheck.isSelected();
 		try {
 			apiBase.path("kits")
 				.request(MediaType.TEXT_PLAIN_TYPE)
@@ -131,7 +142,7 @@ public class NewKitDialog extends JDialog {
 			JOptionPane.showMessageDialog(this, "Kit added successfully", "Add new kit", JOptionPane.INFORMATION_MESSAGE);
 			kil.kitServerStatusChanged(kit.ref);
 			dispose();
-		} catch (ClientErrorException | ServerErrorException e) {
+		} catch (WebApplicationException e) {
 			String errorMessage = WebcamScanner.readHttpErrorMessage(e);
 			JOptionPane.showMessageDialog(this, errorMessage, "Add new kit", JOptionPane.ERROR_MESSAGE);
 		} catch (ProcessingException e) {

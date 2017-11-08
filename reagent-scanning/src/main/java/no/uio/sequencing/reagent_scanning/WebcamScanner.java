@@ -94,6 +94,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 	private WebTarget apiBaseTarget;
 	private JTextArea errorTextArea;
 	private JLabel kitNameValue;
+	private JLabel lblGroupValue;
 	private JPanel topRowPanel;
 	private JCheckBox scanEnableCheckbox;
 	private JPanel errorPanel;
@@ -175,7 +176,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		scanningPanel.add(topRowPanel);
 		topRowPanel.setLayout(new BorderLayout(0, 0));
 		
-		statusLabel = new JLabel("Initialising...");
+		statusLabel = new JLabel("Starting up...");
 		topRowPanel.add(statusLabel, BorderLayout.CENTER);
 		statusLabel.setHorizontalAlignment(SwingConstants.LEFT);
 		statusLabel.setFont(new Font("Lucida Grande", Font.PLAIN, 20));
@@ -199,7 +200,10 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		scanBox.setBorder(new EmptyBorder(4, 4, 4, 4));
 		scanningPanel.add(scanBox);
 		scanBox.setBackground(UIManager.getColor("Panel.background"));
-		
+
+		JLabel lblGroup = new JLabel("GROUP");
+		lblGroupValue = new JLabel("GROUP");
+
 		JLabel lblKitName = new JLabel("KIT");
 		
 		kitNameValue = new JLabel("");
@@ -232,12 +236,14 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 					.addGap(6)
 					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
 						.addGroup(gl_scanBox.createParallelGroup(Alignment.TRAILING, false)
+							.addComponent(lblGroup, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
 							.addComponent(lblDate, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
 							.addComponent(lblRgt, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
 							.addComponent(lblLot, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
 							.addComponent(lblRefBox, GroupLayout.DEFAULT_SIZE, 69, Short.MAX_VALUE))
 						.addComponent(lblKitName, GroupLayout.PREFERRED_SIZE, 46, GroupLayout.PREFERRED_SIZE))
 					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
+						.addComponent(lblGroupValue, GroupLayout.PREFERRED_SIZE, 263, GroupLayout.PREFERRED_SIZE)
 						.addComponent(kitNameValue, GroupLayout.PREFERRED_SIZE, 263, GroupLayout.PREFERRED_SIZE)
 						.addComponent(scanRgt, Alignment.TRAILING)
 						.addComponent(scanDate, Alignment.TRAILING)
@@ -250,8 +256,12 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 				.addGroup(gl_scanBox.createSequentialGroup()
 					.addGap(3)
 					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
-						.addComponent(lblKitName, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
-						.addComponent(kitNameValue, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE))
+							.addComponent(lblGroup, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
+							.addComponent(lblGroupValue, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE))
+					.addPreferredGap(ComponentPlacement.RELATED)
+					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
+							.addComponent(lblKitName, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
+							.addComponent(kitNameValue, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE))
 					.addPreferredGap(ComponentPlacement.RELATED)
 					.addGroup(gl_scanBox.createParallelGroup(Alignment.LEADING)
 						.addComponent(lblRefBox, GroupLayout.PREFERRED_SIZE, 19, GroupLayout.PREFERRED_SIZE)
@@ -271,7 +281,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 					.addContainerGap())
 		);
 		scanBox.setLayout(gl_scanBox);
-		
+				
 		JPanel buttonPanel = new JPanel();
 		buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		scanningPanel.add(buttonPanel);
@@ -293,9 +303,6 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		});
 		btnEdit.setEnabled(false);
 		buttonPanel.add(btnEdit);
-		
-		JLabel lblNewLabel = new JLabel(" ");
-		scanningPanel.add(lblNewLabel);
 		
 		Component horizontalStrut = Box.createHorizontalStrut(300);
 		scanningPanel.add(horizontalStrut);
@@ -340,14 +347,19 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 
 		Client client = ClientBuilder.newBuilder()
 				.register(MoxyJsonFeature.class)
-				.build();		
+				.build();
 		apiBaseTarget = client.target(apiUrl);
 		
+		new StartupGroupSelectDialog(this);
+	}
 
+
+	public void groupSelected(String groupIdentifier) {
+		lblGroupValue.setText(groupIdentifier);
 		// Note: This triggers the event, to start scanning! (Intentionally)
 		scanEnableCheckbox.setSelected(true);
 	}
-
+	
 	public void run() {
 
 		final Code128Reader codeReader = new Code128Reader();
@@ -467,7 +479,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		try { // Globally catch IO exceptions (communication error)
 			if (workflow == null || !workflow.ref.equals(data.get(0))) {
 				statusLabel.setText("Kit lookup...");
-				workflow = new ScanResultsWorkflow(apiBaseTarget, data.get(0));
+				workflow = new ScanResultsWorkflow(apiBaseTarget, data.get(0), lblGroupValue.getText());
 			}
 			workflow.loadKit();
 			kitNameValue.setText(workflow.kit.name);
@@ -599,7 +611,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			
 			if (workflow == null || !workflow.ref.equals(data.get(0))) {
 				statusLabel.setText("Kit lookup...");
-				workflow = new ScanResultsWorkflow(apiBaseTarget, data.get(0));
+				workflow = new ScanResultsWorkflow(apiBaseTarget, data.get(0), lblGroupValue.getText());
 			}
 			workflow.loadKit();
 			kitNameValue.setText(workflow.kit.name);
@@ -687,7 +699,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 
 	private void showNewKitDialog() {
 		if (newKitDialog == null || !newKitDialog.isDisplayable()) {
-			newKitDialog = new NewKitDialog(apiBaseTarget, this);
+			newKitDialog = new NewKitDialog(apiBaseTarget, this, lblGroupValue.getText());
 		}
 		else {
 			java.awt.EventQueue.invokeLater(new Runnable() {

@@ -21,7 +21,7 @@ import net.sourceforge.tess4j.TesseractException;
 
 public class ScanResultsWorkflow {
 
-	public final String ref;
+	public final String ref, group;
 	public String lotNumber, uniqueId;
 	public Kit kit;
 	public Lot lot;
@@ -45,9 +45,10 @@ public class ScanResultsWorkflow {
 		//tess.setTessVariable("tessedit_char_whitelist", "01234567890/ ");
 	}
 	
-	public ScanResultsWorkflow(WebTarget apiBase, String ref) {
+	public ScanResultsWorkflow(WebTarget apiBase, String ref, String group) {
 		this.apiBase = apiBase;
 		this.ref = ref;
+		this.group = group;
 	}
 
 	public void loadKit() throws KitNotFoundException {
@@ -129,7 +130,7 @@ public class ScanResultsWorkflow {
 	
 	public boolean tryGetLotDate() {
 		try {
-			lot = apiBase.path("lots").path(ref).path(lotNumber)
+			lot = apiBase.path("lots").path(ref).path(lotNumber).path(group)
 					.request(MediaType.APPLICATION_JSON_TYPE)
 					.get(Lot.class);
 			if (lot.expiryDate == null) {
@@ -156,7 +157,7 @@ public class ScanResultsWorkflow {
 		lot.expiryDate = getExpiryDateString().replace('/','-');
 		lot.known = true;
 		lot.ref = ref;
-		lot = apiBase.path("lots").path(ref).path(lot.lotnumber)
+		lot = apiBase.path("lots").path(ref).path(lot.lotnumber).path(group)
 				.request(MediaType.APPLICATION_JSON_TYPE)
 				.post(Entity.json(lot), Lot.class);
 		completed = true;

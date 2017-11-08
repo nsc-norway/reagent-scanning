@@ -27,15 +27,17 @@ public class NewKitDialog extends JDialog {
 	private static final long serialVersionUID = 1L;
 	private final WebTarget apiBase;
 	private final KitInvalidationListener kil;
+	private final String group;
 	private JTextField refField;
 	private JTextField kitNameField;
 	private JTextField versionSubtypeField;
 	private JCheckBox uniqueIdCheck;
 	private JCheckBox setActiveCheck;
 	
-	public NewKitDialog(WebTarget apiBase, KitInvalidationListener kil) {
+	public NewKitDialog(WebTarget apiBase, KitInvalidationListener kil, String group) {
 		this.apiBase = apiBase;
 		this.kil = kil;
+		this.group = group;
 		getContentPane().setLayout(new FormLayout(new ColumnSpec[] {
 				FormSpecs.RELATED_GAP_COLSPEC,
 				FormSpecs.DEFAULT_COLSPEC,
@@ -136,7 +138,7 @@ public class NewKitDialog extends JDialog {
 		kit.hasUniqueId = uniqueIdCheck.isSelected();
 		kit.setActive = setActiveCheck.isSelected();
 		try {
-			apiBase.path("kits")
+			apiBase.path("kits").path(group)
 				.request(MediaType.TEXT_PLAIN_TYPE)
 				.post(Entity.entity(kit, MediaType.APPLICATION_JSON_TYPE), String.class);
 			JOptionPane.showMessageDialog(this, "Kit added successfully", "Add new kit", JOptionPane.INFORMATION_MESSAGE);

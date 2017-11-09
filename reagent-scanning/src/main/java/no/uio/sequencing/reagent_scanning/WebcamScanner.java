@@ -41,8 +41,6 @@ import javax.swing.UIManager;
 import javax.swing.border.BevelBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.SoftBevelBorder;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.InternalServerErrorException;
@@ -191,9 +189,11 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 					thread.setDaemon(true);
 					thread.start();
 				}
-				else {
+				else if (!returnToScanning) {
+					resetManualInput();
 				}
 			}
+
 		});
 		scanEnableCheckbox.setHorizontalAlignment(SwingConstants.TRAILING);
 		topRowPanel.add(scanEnableCheckbox, BorderLayout.EAST);
@@ -211,37 +211,40 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		kitNameValue = new JLabel("");
 		kitNameValue.setFont(new Font("Lucida Grande", Font.PLAIN, 15));
 		
-		DocumentListener refChangeDocListener = new DocumentListener() {
-			@Override
-			public void insertUpdate(DocumentEvent e) {
-				System.out.println("insert: " + scanRef.getText());
-			}
-			@Override
-			public void removeUpdate(DocumentEvent e) {
-				System.out.println("remove");
-			}
-			@Override
-			public void changedUpdate(DocumentEvent e) {
-				System.out.println("change");
-			}
-		};
-		
 		JLabel lblRefBox = new JLabel("REF");
 		
 		scanRef = new JTextField();
 		scanRef.setEditable(false);
 		scanRef.setColumns(10);
-		scanRef.getDocument().addDocumentListener(refChangeDocListener);
+		scanRef.getDocument().addDocumentListener(new BurstEntryDocumentListener(4) {
+			@Override
+			public void burstEntryDetected() {
+				manualRefScanned();
+			}
+		});
 		
 		JLabel lblLot = new JLabel("LOT");
 		
 		scanLot = new JTextField();
 		scanLot.setColumns(10);
+		scanLot.getDocument().addDocumentListener(new BurstEntryDocumentListener(4) {
+			@Override
+			public void burstEntryDetected() {
+				manualLotScanned();
+			}
+		});
+		
 		
 		JLabel lblRgt = new JLabel("RGT");
 		
 		scanRgt = new JTextField();
 		scanRgt.setColumns(10);
+		scanRgt.getDocument().addDocumentListener(new BurstEntryDocumentListener(4) {
+			@Override
+			public void burstEntryDetected() {
+				manualRgtScanned();
+			}
+		});
 		
 		JLabel lblDate = new JLabel("Date");
 		
@@ -501,6 +504,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			}
 			workflow.loadKit();
 			kitNameValue.setText(workflow.kit.name);
+			scanRgt.setEnabled(workflow.kit.hasUniqueId);
 			workflow.setBarcodes(data);
 			
 			topRowPanel.setBackground(new Color(250, 250, 230));
@@ -511,7 +515,6 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			}
 			
 			if (workflow.valiDate()) {
-				statusLabel.setText("Saving...");
 				try {
 					workflow.save();
 					scanRgt.setText(workflow.lot.uniqueId);
@@ -645,11 +648,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 				scanDate.setText(workflow.lot.expiryDate);
 			}
 			else {
-				scanRef.setText("");
-				scanLot.setText("");
-				scanRgt.setText("");
-				scanDate.setText("");
-				kitNameValue.setText("");
+				resetManualInput();
 			}
 		}
 		catch (WebApplicationException e) {
@@ -728,5 +727,77 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		if (workflow != null && workflow.ref.equals(ref)) {
 			workflow = null;
 		}
+	}
+
+	private void manualRefScanned() {
+		topRowPanel.setBackground(new Color(230, 230, 250));
+		statusLabel.setText("Ready");
+		if (!scanRef.getText().isEmpty() && !scanEnableCheckbox.isSelected()) {
+			try {
+				scanLot.requestFocusInWindow(); 
+				if (workflow == null || !workflow.ref.equals(scanRef.getText())) {
+					workflow = new ScanResultsWorkflow(apiBaseTarget, scanRef.getText(), lblGroupValue.getText());
+					workflow.loadKit();
+				}
+				workflow.resetLot();
+				if (workflow.kit != null) {
+					kitNameValue.setText(workflow.kit.name);
+					scanRgt.setEnabled(workflow.kit.hasUniqueId);
+					if (!scanLot.getText().isEmpty()) {
+						// If we scanned the lot before we 
+						manualLotScanned();
+					}
+				}
+			}
+			catch (WebApplicationException e) {
+				String message = readHttpErrorMessage(e);
+				showError(message);
+			} catch (KitNotFoundException e) {
+				// Ignore Kit not found errors here
+			} catch (ProcessingException e) {
+				showError("Input/Output error: " + e.getMessage());
+			}
+		}
+	}
+
+	private synchronized void manualLotScanned() {
+		if (workflow != null && workflow.kit != null && !scanLot.getText().isEmpty() && 
+				!scanLot.getText().equals(workflow.lotNumber)) {
+			workflow.lotNumber = scanLot.getText();
+			workflow.tryGetLotDate();
+			boolean validDate = workflow.valiDate();
+			if (validDate) {
+				scanDate.setText(workflow.getExpiryDateString());
+			}
+			if (workflow.kit.hasUniqueId) {
+				scanRgt.requestFocusInWindow();
+			}
+			else if (validDate) {
+				btnAdd.requestFocusInWindow();
+			}
+			else {
+				scanDate.requestFocusInWindow();
+			}
+		}
+	}
+	
+	private void manualRgtScanned() {
+		if (workflow != null && workflow.kit != null && !scanRgt.getText().isEmpty()) {
+			if (workflow.valiDate()) {
+				btnAdd.requestFocusInWindow();
+			}
+			else {
+				scanDate.requestFocusInWindow();
+			}
+		}
+	}
+
+	private void resetManualInput() {
+		scanRef.setText("");
+		scanLot.setText("");
+		scanRgt.setText("");
+		scanDate.setText("");
+		kitNameValue.setText("");
+		scanRef.requestFocusInWindow();
 	}
 }

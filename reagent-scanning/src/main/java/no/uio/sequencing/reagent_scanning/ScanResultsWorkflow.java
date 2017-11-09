@@ -134,5 +134,12 @@ public class ScanResultsWorkflow {
 			.request(MediaType.APPLICATION_JSON_TYPE)
 			.put(Entity.json(lot), Lot.class);
 	}
+
+	public void resetLot() {
+		lotNumber = null;
+		uniqueId = null;
+		lot = null;
+		expiryDate = null;
+	}
 	
 }

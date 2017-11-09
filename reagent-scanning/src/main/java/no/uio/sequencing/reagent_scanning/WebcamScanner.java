@@ -41,6 +41,8 @@ import javax.swing.UIManager;
 import javax.swing.border.BevelBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.SoftBevelBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.InternalServerErrorException;
@@ -202,18 +204,34 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		scanBox.setBackground(UIManager.getColor("Panel.background"));
 
 		JLabel lblGroup = new JLabel("GROUP");
-		lblGroupValue = new JLabel("GROUP");
+		lblGroupValue = new JLabel("");
 
 		JLabel lblKitName = new JLabel("KIT");
 		
 		kitNameValue = new JLabel("");
 		kitNameValue.setFont(new Font("Lucida Grande", Font.PLAIN, 15));
 		
+		DocumentListener refChangeDocListener = new DocumentListener() {
+			@Override
+			public void insertUpdate(DocumentEvent e) {
+				System.out.println("insert: " + scanRef.getText());
+			}
+			@Override
+			public void removeUpdate(DocumentEvent e) {
+				System.out.println("remove");
+			}
+			@Override
+			public void changedUpdate(DocumentEvent e) {
+				System.out.println("change");
+			}
+		};
+		
 		JLabel lblRefBox = new JLabel("REF");
 		
 		scanRef = new JTextField();
 		scanRef.setEditable(false);
 		scanRef.setColumns(10);
+		scanRef.getDocument().addDocumentListener(refChangeDocListener);
 		
 		JLabel lblLot = new JLabel("LOT");
 		
@@ -488,17 +506,9 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			topRowPanel.setBackground(new Color(250, 250, 230));
 			statusLabel.setText("Saving...");
 			beep(Beep.INFO);
-			if (!workflow.tryGetLotDate()) {
-				statusLabel.setText("Analysing image for expiry date...");
-				try {
-					workflow.scanExpiryDate(image);
-					scanDate.setBackground(Color.YELLOW);
-				} catch (UnsatisfiedLinkError e) {
-					JOptionPane.showMessageDialog(null, "Error: Text recognition software not available.");
-					throw new DateParsingException();
-				}
+			if (workflow.tryGetLotDate()) {
+				scanDate.setText(workflow.getExpiryDateString());
 			}
-			scanDate.setText(workflow.getExpiryDateString());
 			
 			if (workflow.valiDate()) {
 				statusLabel.setText("Saving...");
@@ -538,9 +548,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			prevScanTime = System.currentTimeMillis();
 			scanPauseSet = new HashSet<String>(data);
 		} catch (DateParsingException e) {
-			String message = "Unable to find the expiry date. Enter date manually or click \"scan\" (top right).";
 			statusLabel.setText("Manual entry mode");
-			showError(message);
 			scanEnableCheckbox.setSelected(false);
 			returnToScanning = true;
 			btnAdd.setEnabled(true);

@@ -4,13 +4,18 @@ import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.JTextComponent;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Entity;
@@ -33,6 +38,11 @@ public class NewKitDialog extends JDialog {
 	private JTextField versionSubtypeField;
 	private JCheckBox uniqueIdCheck;
 	private JCheckBox setActiveCheck;
+	private JTextField kitVersionField;
+	private JTextField numCyclesField;
+	private final JComboBox<String> sequencingTypeField;
+	private final JComboBox<String> nextseqField;
+	private final JComboBox<String> otherPropertiesField;
 	
 	public NewKitDialog(WebTarget apiBase, KitInvalidationListener kil, String group) {
 		this.apiBase = apiBase;
@@ -40,7 +50,7 @@ public class NewKitDialog extends JDialog {
 		this.group = group;
 		getContentPane().setLayout(new FormLayout(new ColumnSpec[] {
 				FormSpecs.RELATED_GAP_COLSPEC,
-				FormSpecs.DEFAULT_COLSPEC,
+				ColumnSpec.decode("default:grow"),
 				FormSpecs.RELATED_GAP_COLSPEC,
 				ColumnSpec.decode("default:grow"),
 				FormSpecs.DEFAULT_COLSPEC,
@@ -59,11 +69,42 @@ public class NewKitDialog extends JDialog {
 				FormSpecs.RELATED_GAP_ROWSPEC,
 				FormSpecs.DEFAULT_ROWSPEC,
 				FormSpecs.RELATED_GAP_ROWSPEC,
+				RowSpec.decode("default:grow"),
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,
+				FormSpecs.RELATED_GAP_ROWSPEC,
 				FormSpecs.DEFAULT_ROWSPEC,
 				FormSpecs.RELATED_GAP_ROWSPEC,
 				FormSpecs.DEFAULT_ROWSPEC,
 				FormSpecs.RELATED_GAP_ROWSPEC,
 				FormSpecs.DEFAULT_ROWSPEC,}));
+		
+		final DocumentListener typeCodeDocListener = new DocumentListener() {
+			@Override
+			public void insertUpdate(DocumentEvent e) {
+				updateTypeCode();
+			}
+			@Override
+			public void removeUpdate(DocumentEvent e) {
+				updateTypeCode();
+			}
+			@Override
+			public void changedUpdate(DocumentEvent e) {
+				updateTypeCode();
+			}
+		};
+		final ActionListener actionMan = new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				updateTypeCode();
+			}
+		};
 		
 		JLabel lblAddANew = new JLabel("Add a new kit type to the scanner program");
 		lblAddANew.setFont(new Font("Lucida Grande", Font.PLAIN, 15));
@@ -76,29 +117,78 @@ public class NewKitDialog extends JDialog {
 		getContentPane().add(refField, "4, 6, 2, 1, fill, default");
 		refField.setColumns(10);
 		
-		JLabel lblExactJitName = new JLabel("Exact kit name in LIMS");
+		JLabel lblExactJitName = new JLabel("Kit name in LIMS without group");
 		getContentPane().add(lblExactJitName, "2, 8, right, default");
 		
 		kitNameField = new JTextField();
 		getContentPane().add(kitNameField, "4, 8, 2, 1, fill, default");
 		kitNameField.setColumns(10);
 		
+		JLabel lblKitVersion = new JLabel("Kit version");
+		lblKitVersion.setHorizontalAlignment(SwingConstants.RIGHT);
+		getContentPane().add(lblKitVersion, "2, 10, right, default");
+		
+		kitVersionField = new JTextField();
+		kitVersionField.setText("1");
+		getContentPane().add(kitVersionField, "4, 10, fill, default");
+		kitVersionField.setColumns(5);
+		kitVersionField.getDocument().addDocumentListener(typeCodeDocListener);
+		
+		JLabel lblNumberOfCycles = new JLabel("Number of cycles");
+		lblNumberOfCycles.setHorizontalAlignment(SwingConstants.RIGHT);
+		getContentPane().add(lblNumberOfCycles, "2, 12, right, default");
+		
+		numCyclesField = new JTextField();
+		getContentPane().add(numCyclesField, "4, 12, fill, default");
+		numCyclesField.setColumns(5);
+		numCyclesField.getDocument().addDocumentListener(typeCodeDocListener);
+		
+		JLabel lblSequencingMethod = new JLabel("Sequencing method");
+		lblSequencingMethod.setHorizontalAlignment(SwingConstants.RIGHT);
+		getContentPane().add(lblSequencingMethod, "2, 14, right, default");
+		
+		sequencingTypeField = new JComboBox<String>();
+		sequencingTypeField.setModel(new DefaultComboBoxModel<String>(new String[] {"N/A", "Paired end", "Single read"}));
+		sequencingTypeField.setSelectedIndex(0);
+		getContentPane().add(sequencingTypeField, "4, 14, fill, default");
+		sequencingTypeField.addActionListener(actionMan);
+		
+		JLabel lblNextseq = new JLabel("NextSeq");
+		lblNextseq.setHorizontalAlignment(SwingConstants.RIGHT);
+		getContentPane().add(lblNextseq, "2, 16, right, default");
+		
+		nextseqField = new JComboBox<String>();
+		nextseqField.setModel(new DefaultComboBoxModel<String>(new String[] {"N/A", "High output", "Mid output"}));
+		getContentPane().add(nextseqField, "4, 16, fill, default");
+		nextseqField.addActionListener(actionMan);
+		
+		JLabel lblOtherProperties = new JLabel("Other properties, if any");
+		lblOtherProperties.setHorizontalAlignment(SwingConstants.RIGHT);
+		getContentPane().add(lblOtherProperties, "2, 18, right, default");
+		
+		otherPropertiesField = new JComboBox<String>();
+		otherPropertiesField.setModel(new DefaultComboBoxModel<String>(new String[] {"", "BC", "RC", "FC", "RAPID"}));
+		otherPropertiesField.setEditable(true);
+		getContentPane().add(otherPropertiesField, "4, 18, fill, default");
+		((JTextComponent)otherPropertiesField.getEditor().getEditorComponent()).getDocument().addDocumentListener(typeCodeDocListener);
+		
 		JLabel lblVersionSubtype = new JLabel("Version / subtype code");
-		getContentPane().add(lblVersionSubtype, "2, 10, right, default");
+		getContentPane().add(lblVersionSubtype, "2, 20, right, default");
 		
 		versionSubtypeField = new JTextField();
-		getContentPane().add(versionSubtypeField, "4, 10, 2, 1, fill, default");
+		versionSubtypeField.setEditable(false);
+		getContentPane().add(versionSubtypeField, "4, 20, 2, 1, fill, default");
 		versionSubtypeField.setColumns(10);
 		
-		JLabel lblegBc = new JLabel("(examples: v3-600C, BC-v2, RC-v2-HO-75C)");
-		getContentPane().add(lblegBc, "4, 12, 2, 1");
+		JLabel lblegBc = new JLabel("(generated based on the above)");
+		getContentPane().add(lblegBc, "4, 22, 2, 1");
 		
 		JLabel lblHasUniqueId = new JLabel("Has unique ID?");
-		getContentPane().add(lblHasUniqueId, "2, 14, right, default");
+		getContentPane().add(lblHasUniqueId, "2, 24, right, default");
 		
-		uniqueIdCheck = new JCheckBox("(3 barcodes)");
+		uniqueIdCheck = new JCheckBox("(3 barcodes, including \"RGT\")");
 		uniqueIdCheck.setSelected(true);
-		getContentPane().add(uniqueIdCheck, "4, 14, 2, 1");
+		getContentPane().add(uniqueIdCheck, "4, 24, 2, 1");
 		
 		JButton btnCancel = new JButton("Cancel");
 		btnCancel.addActionListener(new ActionListener() {
@@ -107,14 +197,14 @@ public class NewKitDialog extends JDialog {
 			}
 		});
 		
-		JLabel lblNewLabel = new JLabel("Set ACTIVE?");
+		JLabel lblNewLabel = new JLabel("Set ACTIVE on scan?");
 		lblNewLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-		getContentPane().add(lblNewLabel, "2, 16");
+		getContentPane().add(lblNewLabel, "2, 26");
 		
 		setActiveCheck = new JCheckBox("");
 		setActiveCheck.setSelected(true);
-		getContentPane().add(setActiveCheck, "4, 16");
-		getContentPane().add(btnCancel, "4, 18");
+		getContentPane().add(setActiveCheck, "4, 26");
+		getContentPane().add(btnCancel, "4, 28");
 		
 		JButton btnOk = new JButton("Add new kit");
 		btnOk.addActionListener(new ActionListener() {
@@ -123,13 +213,49 @@ public class NewKitDialog extends JDialog {
 			}
 		});
 		setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-		getContentPane().add(btnOk, "5, 18");
+		getContentPane().add(btnOk, "5, 28");
 		getRootPane().setDefaultButton(btnOk);
 		pack();
 		setVisible(true);
-
+		updateTypeCode();
 	}
-
+	/**
+	 * 	private JTextField kitVersionField;
+	private JTextField numCyclesField;
+	private final JComboBox<String> sequencingTypeField;
+	private final JComboBox<String> nextseqField;
+	private final JComboBox<String> otherPropertiesField;
+	 */
+	private void updateTypeCode() {
+		String code = "";
+		String otherProp = (String)otherPropertiesField.getSelectedItem();
+		if (!otherProp.isEmpty()) {
+			code += otherProp + "-";
+		}
+		String nextseq = (String)nextseqField.getSelectedItem();
+		if ("High output".equals(nextseq)) {
+			code += "HO-";
+		}
+		else if ("Mid output".equals(nextseq)) {
+			code += "MO-";
+		}
+		String seqmethod = (String)sequencingTypeField.getSelectedItem();
+		if ("Paired end".equals(seqmethod)) {
+			code += "PE-";
+		}
+		else if ("Single read".equals(seqmethod)) {
+			code += "SR-";
+		}
+		if (!numCyclesField.getText().isEmpty()) {
+			code += numCyclesField.getText(); // we don't use hyphen here before version, as it's unambiguous
+		}
+		if (kitVersionField.getText().isEmpty())
+			code += "V1";
+		else
+			code += "V" + kitVersionField.getText();
+		versionSubtypeField.setText(code);
+	}
+	
 	public void submitKit() {
 		Kit kit = new Kit();
 		kit.ref = refField.getText();

@@ -764,19 +764,21 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		if (workflow != null && workflow.kit != null && !scanLot.getText().isEmpty() && 
 				!scanLot.getText().equals(workflow.lotNumber)) {
 			workflow.lotNumber = scanLot.getText();
+			if (workflow.kit.hasUniqueId) {
+				scanRgt.requestFocusInWindow();
+			}
 			workflow.tryGetLotDate();
 			boolean validDate = workflow.valiDate();
 			if (validDate) {
 				scanDate.setText(workflow.getExpiryDateString());
 			}
-			if (workflow.kit.hasUniqueId) {
-				scanRgt.requestFocusInWindow();
-			}
-			else if (validDate) {
-				btnAdd.requestFocusInWindow();
-			}
-			else {
-				scanDate.requestFocusInWindow();
+			if (!workflow.kit.hasUniqueId) {
+				if (validDate) {
+					btnAdd.requestFocusInWindow();
+				}
+				else {
+					scanDate.requestFocusInWindow();
+				}
 			}
 		}
 	}

@@ -41,7 +41,6 @@ public class StartupGroupSelectDialog extends JDialog {
 				dispose();
 			}
 		});
-		getRootPane().setDefaultButton(nscButton);
 		JButton diagButton = new JButton("Diag");
 		diagButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {

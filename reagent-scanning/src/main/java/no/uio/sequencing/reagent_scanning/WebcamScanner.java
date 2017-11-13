@@ -552,8 +552,8 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			scanPauseSet = new HashSet<String>(data);
 		} catch (DateParsingException e) {
 			statusLabel.setText("Manual entry mode");
-			scanEnableCheckbox.setSelected(false);
 			returnToScanning = true;
+			scanEnableCheckbox.setSelected(false);
 			btnAdd.setEnabled(true);
 			scanDate.setBackground(Color.YELLOW);
 			scanDate.requestFocusInWindow();

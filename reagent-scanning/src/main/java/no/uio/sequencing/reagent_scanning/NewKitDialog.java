@@ -247,7 +247,7 @@ public class NewKitDialog extends JDialog {
 			code += "SR-";
 		}
 		if (!numCyclesField.getText().isEmpty()) {
-			code += numCyclesField.getText(); // we don't use hyphen here before version, as it's unambiguous
+			code += numCyclesField.getText() + "-";
 		}
 		if (kitVersionField.getText().isEmpty())
 			code += "V1";

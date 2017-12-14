@@ -261,13 +261,15 @@ public class NewKitDialog extends JDialog {
 		if (!numCyclesField.getText().isEmpty()) {
 			code += numCyclesField.getText() + "-";
 		}
-		if (!numReactionsField.getText().isEmpty()) {
-			code += numReactionsField.getText() + "R-";
-		}
+		// There's always a "version", so this is the end, but possibly a 
+		// -R for reactions below
 		if (kitVersionField.getText().isEmpty())
 			code += "V1";
 		else
 			code += "V" + kitVersionField.getText();
+		if (!numReactionsField.getText().isEmpty()) {
+			code += "-" + numReactionsField.getText() + "R";
+		}
 		versionSubtypeField.setText(code);
 	}
 	

@@ -4,7 +4,7 @@
 
   <groupId>no.uio.sequencing</groupId>
   <artifactId>reagent-scanning</artifactId>
-  <version>1.2.0</version>
+  <version>1.2.1</version>
   <packaging>jar</packaging>
 
   <name>reagent-scanning</name>

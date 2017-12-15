@@ -58,6 +58,15 @@ public class StartupGroupSelectDialog extends JDialog {
 			}
 		});
 		contentPanel.add(tiButton);
+		
+		JButton mikButton = new JButton("MIK");
+		mikButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				parentWindow.groupSelected("MIK");
+				dispose();
+			}
+		});
+		contentPanel.add(mikButton);
 		pack();
 		setVisible(true);
 	}

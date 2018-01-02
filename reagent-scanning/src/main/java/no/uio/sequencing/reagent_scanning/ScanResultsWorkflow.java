@@ -19,10 +19,10 @@ public class ScanResultsWorkflow {
 	public Kit kit;
 	public Lot lot;
 	private Date expiryDate;
-	private boolean completed = false;
+	private boolean completed = false, useKitNameAsLotName = false;
 	long negCache = 0;
 	private final WebTarget apiBase;
-	
+
 	private final static SimpleDateFormat dt1 = new SimpleDateFormat("yyyy/MM/dd");
 	private static final long CACHE_TIME = 10000;
 		
@@ -48,11 +48,13 @@ public class ScanResultsWorkflow {
 		}
 	}
 	
-	public void setBarcodes(List<String> barcodes) throws InvalidBarcodeSetException, IOException {
+	public void setBarcodes(ScanResult scanResult) throws InvalidBarcodeSetException, IOException {
 		this.completed = false;
 		
+		this.expiryDate = scanResult.expiryDate;
+		List<String> barcodes = scanResult.data;
 		if (kit.hasUniqueId) {
-			if (barcodes.size() == 3) {
+			if (barcodes.size() >= 3) {
 				lotNumber = barcodes.get(1);
 				uniqueId = barcodes.get(2);
 			}
@@ -68,6 +70,7 @@ public class ScanResultsWorkflow {
 				throw new InvalidBarcodeSetException("Need two barcodes for kit " + kit.ref + ".");
 			}
 		}
+		useKitNameAsLotName = scanResult.useKitNameAsLotName;
 	}
 	
 	public void setExpiryDate(String dateString) throws ParseException {
@@ -111,7 +114,12 @@ public class ScanResultsWorkflow {
 	}
 
 	public void save() throws IOException {
-		if (kit.hasUniqueId) {
+		if (useKitNameAsLotName) { // This is a "hacky" override -- Ignore unique ID and use kit name (sigh)
+			lot = new Lot();
+			lot.lotnumber = lotNumber;
+			lot.uniqueId = kit.name;
+		}
+		else if (kit.hasUniqueId) {
 			lot = new Lot();
 			lot.lotnumber = lotNumber;
 			lot.uniqueId = uniqueId;

@@ -15,7 +15,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -56,12 +59,15 @@ import org.glassfish.jersey.moxy.json.MoxyJsonFeature;
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamPanel;
 import com.google.zxing.BinaryBitmap;
+import com.google.zxing.ChecksumException;
 import com.google.zxing.DecodeHintType;
+import com.google.zxing.FormatException;
 import com.google.zxing.LuminanceSource;
 import com.google.zxing.NotFoundException;
 import com.google.zxing.Result;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
+import com.google.zxing.datamatrix.DataMatrixReader;
 import com.google.zxing.multi.GenericMultipleBarcodeReader;
 import com.google.zxing.oned.Code128Reader;
 
@@ -387,6 +393,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		final HashMap<DecodeHintType, Object> hints = new HashMap<>();
 		hints.put(DecodeHintType.TRY_HARDER, true);
 		GenericMultipleBarcodeReader reader = new GenericMultipleBarcodeReader(codeReader);
+		final DataMatrixReader dataMatrixReader = new DataMatrixReader();
 
 		if (!returnToScanning) { // If in return to.. mode, we want to show "Saved" / what ever
 			statusLabel.setText("Scanning...");
@@ -399,6 +406,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		while (scanEnableCheckbox.isSelected()) {
 			webcamPanelRef.resume();
 			Result [] results = {};
+			Result dataMatrixResult = null;
 			BufferedImage image = null;
 
 			if (webcam != null && webcam.isOpen()) {
@@ -417,21 +425,32 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 				BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
 
 				try {
+					dataMatrixResult = dataMatrixReader.decode(bitmap);
+				}
+				catch (NotFoundException | ChecksumException | FormatException e) {
+				}
+				try {
 					results = reader.decodeMultiple(bitmap, hints);
 				} catch (NotFoundException e) {
-					// fall thru, it means there is no QR code in image
+					// fall thru, it means there is no Code128 bar code in image
 				}
 			}
 
 			long now = System.currentTimeMillis();
-			// Create a list "data" sorted by y-coord
-			Map<Float,String> resultMap = new TreeMap<>();
-			for (Result r : results) {
-				resultMap.put(r.getResultPoints()[0].getY(), r.getText());
+			ScanResult scanResult;
+			if (dataMatrixResult == null) {
+				// Create a list "data" sorted by y-coord
+				Map<Float,String> resultMap = new TreeMap<>();
+				for (Result r : results) {
+					resultMap.put(r.getResultPoints()[0].getY(), r.getText());
+				}
+				scanResult = new ScanResult(new ArrayList<String>(resultMap.values()));
 			}
-			List<String> data = new ArrayList<String>(resultMap.values());
+			else {
+				scanResult = pickApartDataMatrixData(dataMatrixResult.getText());
+			}
 			
-			boolean noNewBarcodes = !scanPauseSet.isEmpty() && scanPauseSet.containsAll(data);
+			boolean noNewBarcodes = !scanPauseSet.isEmpty() && scanPauseSet.containsAll(scanResult.data);
 			boolean timeout = now - prevScanTime >= SCAN_PAUSE_TIME;
 
 			if (timeout || !noNewBarcodes) {
@@ -445,7 +464,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 				
 				topRowPanel.setBackground(new Color(230, 230, 250));
 			}
-			if (noNewBarcodes && (!timeout || data.isEmpty())) {
+			if (noNewBarcodes && (!timeout || scanResult.data.isEmpty())) {
 				continue;
 			}
 			
@@ -455,7 +474,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			final JTextField[] destination = {scanRef, scanLot, scanRgt};
 
 			int pointer = 0;
-			for (String text : resultMap.values()) {
+			for (String text : scanResult.data) {
 				if (pointer < destination.length) {
 					destination[pointer++].setText(text);
 				}
@@ -463,7 +482,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			for (; pointer < destination.length; ++pointer) {
 				destination[pointer].setText("");
 			}
-			if (data.isEmpty()) {
+			if (scanResult.data.isEmpty()) {
 				kitNameValue.setText("");
 			}
 			scanDate.setText("");
@@ -475,12 +494,12 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 				//errorTextArea.setBackground(UIManager.getColor("Panel.background"));
 			}
 			
-			if (data.size() >= 2) {
+			if (scanResult.data.size() >= 2) {
 				webcamPanelRef.pause();
 				final JTextField[] fields = {scanLot, scanRgt, scanDate};
 				for (JTextField field: fields)
 					field.setEditable(false);
-				processResult(image, data);
+				processResult(image, scanResult);
 				for (JTextField field: fields)
 					field.setEditable(true);
 			}
@@ -496,21 +515,60 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 		scanRef.setEditable(true);
 	}
 
-	private synchronized void processResult(BufferedImage image, List<String> data) {
+	private ScanResult pickApartDataMatrixData(String text) {
+		final SimpleDateFormat barcodeDateFmt = new SimpleDateFormat("yyMMdd");
+		// Expect a string of this format:
+		// (ii)xxxxxxx(jj)yyyyyy(kk)zzzzzz
+		String [] parts = text.split("[()]");
+		String ref = null, lot = null, rgt = null;
+		Date date = null;
+		if ((parts.length % 2) == 1) { // It's an odd number (first char is a "(") 
+			for (int i=1; i<parts.length; i+=2) {
+				String id = parts[i];
+				String value = parts[i+1];
+				if ("240".equals(id))
+					ref = value;
+				else if ("10".equals(id))
+					lot = value;
+				else if ("01".equals(id))
+					rgt = value;
+				else if ("17".equals(id)) { 
+					try {
+						date = barcodeDateFmt.parse(value);
+					}
+					catch (ParseException e) {
+						
+					}
+				}
+			}
+			if (ref != null && lot != null && rgt != null && date != null) {
+				ScanResult result = new ScanResult(Arrays.asList(ref, lot, rgt));
+				result.useKitNameAsLotName = true;
+				result.expiryDate = date;
+				return result;
+			}
+		}
+		return new ScanResult();
+	}
+
+
+	private synchronized void processResult(BufferedImage image, ScanResult scanResult) {
 		try { // Globally catch IO exceptions (communication error)
-			if (workflow == null || !workflow.ref.equals(data.get(0))) {
+			if (workflow == null || !workflow.ref.equals(scanResult.data.get(0))) {
 				statusLabel.setText("Kit lookup...");
-				workflow = new ScanResultsWorkflow(apiBaseTarget, data.get(0), lblGroupValue.getText());
+				workflow = new ScanResultsWorkflow(apiBaseTarget, scanResult.data.get(0), lblGroupValue.getText());
 			}
 			workflow.loadKit();
 			kitNameValue.setText(workflow.kit.name);
 			scanRgt.setEnabled(workflow.kit.hasUniqueId);
-			workflow.setBarcodes(data);
+			
+			// This method throws if the kit requires three barcodes and only two are provided
+			workflow.setBarcodes(scanResult);
 			
 			topRowPanel.setBackground(new Color(250, 250, 230));
 			statusLabel.setText("Saving...");
 			beep(Beep.INFO);
-			if (workflow.tryGetLotDate()) {
+			if (workflow.getExpiryDate() != null || workflow.tryGetLotDate()) {
 				scanDate.setText(workflow.getExpiryDateString());
 			}
 			
@@ -529,7 +587,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 				}
 				// This enables a pause between scan attempts after completion
 				prevScanTime = System.currentTimeMillis();
-				scanPauseSet = new HashSet<String>(data);
+				scanPauseSet = new HashSet<String>(scanResult.data);
 			}
 			else {
 				throw new DateParsingException();
@@ -549,7 +607,7 @@ public class WebcamScanner extends JFrame implements Runnable, KitInvalidationLi
 			showError(e.getMessage());
 			// This enables a pause between scan attempts after kit not found, for these exact data
 			prevScanTime = System.currentTimeMillis();
-			scanPauseSet = new HashSet<String>(data);
+			scanPauseSet = new HashSet<String>(scanResult.data);
 		} catch (DateParsingException e) {
 			statusLabel.setText("Manual entry mode");
 			returnToScanning = true;

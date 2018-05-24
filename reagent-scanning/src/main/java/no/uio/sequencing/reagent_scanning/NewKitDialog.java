@@ -179,11 +179,12 @@ public class NewKitDialog extends JDialog {
 		getContentPane().add(lblOtherProperties, "2, 20, right, default");
 		
 		otherPropertiesField = new JComboBox<String>();
-		otherPropertiesField.setModel(new DefaultComboBoxModel<String>(new String[] {"", "BC", "RC", "FC", "RAPID"}));
+		otherPropertiesField.setModel(new DefaultComboBoxModel<String>(new String[] {"", "BC", "RC", "FC", "RAPID", "NANO", "MICRO"}));
 		otherPropertiesField.setEditable(true);
 		getContentPane().add(otherPropertiesField, "4, 20, fill, default");
 		((JTextComponent)otherPropertiesField.getEditor().getEditorComponent()).getDocument().addDocumentListener(typeCodeDocListener);
-		
+		otherPropertiesField.addActionListener(actionMan);
+
 		JLabel lblVersionSubtype = new JLabel("Version / subtype code");
 		getContentPane().add(lblVersionSubtype, "2, 22, right, default");
 		

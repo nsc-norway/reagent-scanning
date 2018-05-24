@@ -274,6 +274,7 @@ public class NewKitDialog extends JDialog {
 	}
 	
 	public void submitKit() {
+		updateTypeCode();
 		Kit kit = new Kit();
 		kit.ref = refField.getText();
 		kit.name = kitNameField.getText();

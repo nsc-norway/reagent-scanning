@@ -24,6 +24,7 @@ public class ScanResultsWorkflow {
 	private final WebTarget apiBase;
 
 	private final static SimpleDateFormat dt1 = new SimpleDateFormat("yyyy/MM/dd");
+	private final static SimpleDateFormat dt2 = new SimpleDateFormat("yyyy-MM-dd");
 	private static final long CACHE_TIME = 10000;
 		
 	public ScanResultsWorkflow(WebTarget apiBase, String ref, String group) {
@@ -74,7 +75,12 @@ public class ScanResultsWorkflow {
 	}
 	
 	public void setExpiryDate(String dateString) throws ParseException {
-		this.expiryDate = dt1.parse(dateString);
+		try {
+			this.expiryDate = dt1.parse(dateString);
+		}
+		catch (ParseException e) {
+			this.expiryDate = dt2.parse(dateString);
+		}
 	}
 	
 	public boolean valiDate() {
